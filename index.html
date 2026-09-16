@@ -1,251 +1,629 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#ffffff">
-    <title>Universal Digipad</title>
-    <link rel="manifest" href="manifest.json">
-    <style>
-        :root {
-            --bg: #f4f4f5;
-            --surface: #ffffff;
-            --text: #18181b;
-            --muted: #71717a;
-            --border: #e4e4e7;
-            --primary: #2563eb;
-            --danger: #ef4444;
-            --amber: #f59e0b;
-        }
-        
-        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; user-select: none; }
-        body { background: var(--bg); color: var(--text); padding-bottom: 50vh; }
-        
-        .header { background: var(--surface); padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
-        .header h1 { font-size: 20px; }
-        
-        .patient-list { padding: 12px; }
-        .card { background: var(--surface); border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .card-title { font-size: 18px; font-weight: bold; }
-        
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: bold; background: var(--border); }
-        .badge.amber { background: var(--amber); color: white; }
-        
-        .module-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-        .module-btn { background: var(--bg); border: 1px solid var(--border); padding: 12px 4px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center; }
-        
-        /* Modals & Inputs */
-        .modal { display: none; position: fixed; inset: 0; background: var(--surface); z-index: 20; flex-direction: column; }
-        .modal.active { display: flex; }
-        .modal-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
-        .modal-content { padding: 16px; overflow-y: auto; }
-        
-        .input-group { margin-bottom: 16px; }
-        .input-label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--muted); }
-        .input-box { width: 100%; padding: 16px; font-size: 24px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg); outline: none; }
-        .input-box.active { border-color: var(--primary); background: var(--surface); }
-        .input-box.error { border-color: var(--danger); background: #fef2f2; }
-        
-        /* Custom Keypad */
-        .keypad { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--border); display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; z-index: 30; }
-        .key { background: var(--surface); padding: 24px 0; font-size: 28px; font-weight: bold; border: none; text-align: center; }
-        .key:active { background: var(--border); }
-        .key-action { background: #e4e4e7; font-size: 20px; }
-        .key-next { background: var(--primary); color: white; }
-        .key-next:active { background: #1d4ed8; }
-        
-        /* Hide standard inputs for keypad use */
-        .readonly-input { pointer-events: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<title>Care Digipad Universal</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --card: #ffffff; --text: #1e293b; --text-sub: #64748b;
+    --border: #cbd5e1; --teal: #0d9488; --amber: #d97706; --slate: #475569;
+    --red: #dc2626; --green: #16a34a; --tab-bg: #e2e8f0; --navy: #1f4e79;
+  }
+  [data-theme="night"] {
+    --bg: #000000; --card: #121212; --text: #e2e8f0; --text-sub: #94a3b8;
+    --border: #334155; --teal: #14b8a6; --amber: #f59e0b; --slate: #94a3b8;
+    --red: #ef4444; --green: #22c55e; --tab-bg: #1e293b; --navy: #0f172a;
+  }
+  
+  * { box-sizing: border-box; font-family: -apple-system, sans-serif; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); padding-bottom: 70px; }
+  .hidden { display: none !important; }
+  
+  #dimmer { position: fixed; inset: 0; background: rgba(0,0,0,0); pointer-events: none; z-index: 9999; }
+  [data-theme="night"] #dimmer { background: rgba(0,0,0,0.35); }
+
+  .setup-container { padding: 20px; }
+  .bed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .bed-pill { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font-weight: 600; text-align: center; cursor: pointer; }
+  .bed-pill.selected { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+  .sticky-nav { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+  header { background: var(--navy); color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 1.1rem; }
+  .scroll-row { display: flex; overflow-x: auto; padding: 10px 16px; gap: 8px; scrollbar-width: none; }
+  .scroll-row::-webkit-scrollbar { display: none; }
+  
+  .tab-btn { padding: 8px 14px; border-radius: 20px; font-weight: 600; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 0.9rem; white-space: nowrap; cursor: pointer; }
+  .tab-btn.active-bed { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .tab-btn.active-sec { background: var(--slate); color: #fff; border-color: var(--slate); }
+  .tab-btn.active-summary { background: var(--amber); color: #fff; border-color: var(--amber); }
+
+  .container { padding: 16px; }
+  .card { background: var(--card); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px; }
+  h2 { font-size: 1.1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--text); }
+  
+  .row { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-end; }
+  .row > div { flex: 1; }
+  label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-sub); margin-bottom: 4px; }
+  input, select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); font-size: 0.95rem; }
+  .bp-pair { display: flex; align-items: center; gap: 4px; }
+  .bp-pair span { font-weight: bold; color: var(--text-sub); }
+  
+  .btn { width: 100%; padding: 12px; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; font-size: 1rem; }
+  .btn-primary { background: var(--slate); color: #fff; margin-top: 8px; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-subtle { background: transparent; color: var(--text-sub); border: 1px solid var(--border); font-size: 0.9rem; padding: 8px; }
+  .btn-sm { width: auto; padding: 6px 12px; font-size: 0.85rem; }
+  
+  .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 700; display: inline-block; }
+  .bg-green { background: #dcfce7; color: #166534; }
+  .bg-amber { background: #fef3c7; color: #92400e; }
+  .bg-red { background: #fee2e2; color: #991b1b; }
+  .bg-info { background: #e0f2fe; color: #0284c7; cursor: pointer; border: 1px solid #bae6fd; }
+  [data-theme="night"] .bg-green { background: #064e3b; color: #34d399; }
+  [data-theme="night"] .bg-amber { background: #78350f; color: #fbbf24; }
+  [data-theme="night"] .bg-red { background: #7f1d1d; color: #f87171; }
+  [data-theme="night"] .bg-info { background: #0c4a6e; color: #38bdf8; border-color: #0284c7; }
+
+  .summary-sec { border-bottom: 1px dashed var(--border); padding-bottom: 12px; margin-bottom: 12px; font-size: 0.95rem; line-height: 1.5; }
+  .summary-sec:last-child { border-bottom: none; }
+  
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); padding: 10px 16px; z-index: 100; text-align: center; }
+  
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.3); border-radius: 24px; transition: .4s; }
+  .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .4s; }
+  input:checked + .slider { background-color: var(--teal); }
+  input:checked + .slider:before { transform: translateX(18px); }
+  .shift-toggle { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 500; }
+
+  #infoModal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .info-content { background: var(--card); padding: 20px; border-radius: 8px; width: 100%; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border); }
+</style>
 </head>
 <body>
+<div id="dimmer"></div>
 
-      <div class="header">
-        <h1>Universal Digipad</h1>
-        <button class="badge" onclick="addPatient()">+ Add Patient</button>
-    </div>
+<div id="infoModal" class="hidden">
+  <div class="info-content">
+    <h2 id="infoTitle" style="color:var(--navy); margin-bottom:12px;"></h2>
+    <div id="infoBody" style="font-size:0.95rem; line-height:1.5; margin-bottom:20px; color:var(--text);"></div>
+    <button class="btn btn-primary" onclick="document.getElementById('infoModal').classList.add('hidden')">Close Reference</button>
+  </div>
+</div>
 
-    <div class="patient-list" id="wardView">
-        <!-- Patient tiles render here -->
-    </div>
+<div id="setupView" class="setup-container">
+  <h2 style="margin-bottom:4px;">Allocation Manager</h2>
+  <p style="font-size:0.9rem; color:var(--text-sub); margin-bottom:16px;">Tap to add or remove patients for this shift.</p>
+  
+  <div style="margin-bottom: 20px;">
+    <label style="font-size:1rem; color:var(--text);">Observation Framework</label>
+    <select id="obsFramework" style="margin-top:8px;">
+      <option value="NEWS2">NEWS2 (Acute & Hospital)</option>
+      <option value="RESTORE2">RESTORE2 (Care Home)</option>
+    </select>
+  </div>
 
-    <!-- Vitals Modal -->
-    <div class="modal" id="vitalsModal">
-        <div class="modal-header">
-            <h2 id="modalPatientName">Record Vitals</h2>
-            <button class="badge" onclick="closeModal()">Close</button>
+  <div id="activeBedsList"></div>
+  <div id="bedGrid" class="bed-grid"></div>
+  <button class="btn btn-primary" style="background:var(--teal);" onclick="startShift()">Start / Update Shift</button>
+</div>
+
+<div id="mainView" class="hidden">
+  <div class="sticky-nav">
+    <header>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <h1>Care Digipad</h1>
+        <button class="btn-sm" style="background:var(--teal); color:#fff; border:none; border-radius:4px; padding:4px 8px; font-weight:bold; cursor:pointer;" onclick="editBeds()">Edit Beds</button>
+      </div>
+      <div class="shift-toggle">
+        <span>Day</span>
+        <label class="switch"><input type="checkbox" id="shiftToggle" onchange="toggleNight(this.checked)"><span class="slider"></span></label>
+        <span>Night</span>
+      </div>
+    </header>
+    <div class="scroll-row" id="bedTabs" style="background:var(--card);"></div>
+    <div class="scroll-row" id="subNav"></div>
+  </div>
+  <div class="container" id="contentArea"></div>
+  <div class="footer">
+    <button class="btn btn-subtle" onclick="clearShift()">End Shift / Clear Data</button>
+  </div>
+</div>
+
+    <script>
+const allBeds = [
+  'Bay 1 Bed 1','Bay 1 Bed 2', 'Bay 2 Bed 1','Bay 2 Bed 2','Bay 2 Bed 3','Bay 2 Bed 4',
+  'Bay 3 Bed 1','Bay 3 Bed 2','Bay 3 Bed 3','Bay 3 Bed 4', 'Bay 4 Bed 1','Bay 4 Bed 2','Bay 4 Bed 3','Bay 4 Bed 4',
+  'Bay 5 Bed 1','Bay 5 Bed 2','Bay 5 Bed 3','Bay 5 Bed 4', 'Side Room 1','Side Room 2','Side Room 3','Side Room 4',
+  'Side Room 5','Side Room 6','Side Room 7'
+];
+
+const sections = [
+  {id:'obs', lbl:'Observations'}, {id:'bm', lbl:'Glucose'}, {id:'bp', lbl:'L/S BP'}, 
+  {id:'fluid', lbl:'Fluids'}, {id:'bowel', lbl:'Bowels'}, {id:'amy', lbl:'Skin'}, 
+  {id:'food', lbl:'Food'}, {id:'turn', lbl:'Turning'}, {id:'events', lbl:'Events'}, 
+  {id:'admit', lbl:'Admissions'}, {id:'reminders', lbl:'Tasks'}
+];
+
+let alloc = [];
+let db = {};
+let showSummary = false;
+let obsFramework = 'NEWS2';
+
+try {
+  const savedAlloc = localStorage.getItem('cdu_alloc');
+  if (savedAlloc) alloc = JSON.parse(savedAlloc);
+  if (!Array.isArray(alloc)) alloc = [];
+  
+  const savedDb = localStorage.getItem('cdu_db');
+  if (savedDb) db = JSON.parse(savedDb);
+  if (typeof db !== 'object' || db === null) db = {};
+
+  const savedFrame = localStorage.getItem('cdu_frame');
+  if (savedFrame) obsFramework = savedFrame;
+  
+  const shiftLimit = 14 * 60 * 60 * 1000;
+  let shiftStart = localStorage.getItem('cdu_start');
+  if (shiftStart && (Date.now() - parseInt(shiftStart)) > shiftLimit) {
+    localStorage.removeItem('cdu_alloc');
+    localStorage.removeItem('cdu_db');
+    localStorage.removeItem('cdu_start');
+    alloc = [];
+    db = {};
+  }
+} catch(e) {
+  alloc = [];
+  db = {};
+}
+
+let curBed = alloc[0] || '';
+let curSec = 'obs';
+let isNight = false;
+let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
+
+document.addEventListener('touchstart', e => {
+  touchStartX = e.changedTouches[0].screenX;
+  touchStartY = e.changedTouches[0].screenY;
+}, {passive: true});
+
+document.addEventListener('touchend', e => {
+  touchEndX = e.changedTouches[0].screenX;
+  touchEndY = e.changedTouches[0].screenY;
+  handleSwipe();
+}, {passive: true});
+
+function initSetup() {
+  const fwSelect = document.getElementById('obsFramework');
+  if (fwSelect) fwSelect.value = obsFramework;
+  renderSetupGrid();
+  if (alloc.length > 0) startShift(true);
+}
+
+function renderSetupGrid() {
+  const grid = document.getElementById('bedGrid');
+  grid.innerHTML = allBeds.map(b => `<div class="bed-pill ${alloc.includes(b)?'selected':''}" onclick="this.classList.toggle('selected')">${b}</div>`).join('');
+  
+  const actList = document.getElementById('activeBedsList');
+  if (alloc.length > 0) {
+    actList.innerHTML = `<h3 style="margin-bottom:8px; font-size:1rem;">Wipe Individual Data</h3>
+    <div class="scroll-row" style="padding:0 0 16px 0; margin-bottom:16px; border-bottom:1px dashed var(--border);">
+      ${alloc.map(b => `<button class="btn btn-danger btn-sm" onclick="clearSingleBed('${b}')">Wipe ${b}</button>`).join('')}
+    </div>`;
+  } else {
+    actList.innerHTML = '';
+  }
+}
+
+function editBeds() {
+  document.getElementById('mainView').classList.add('hidden');
+  document.getElementById('setupView').classList.remove('hidden');
+  renderSetupGrid();
+}
+
+function clearSingleBed(b) {
+  if (confirm(`Are you sure you want to wipe all data for ${b}?`)) {
+    db[b] = { obs: [], bm: [], events: [], admit: [], bowel: [], dressings: [], bp: {lsys:'', ldia:'', ssys:'', sdia:''}, amy: {sac:'', groin:'', heels:'', elbows:''}, food: {b:'', l:'', d:''}, turn: Array(6).fill(''), fluid: Array(13).fill(null).map(()=>({i:'', o:''})), reminders: [] };
+    saveDB();
+    alert(`${b} has been cleared.`);
+  }
+}
+
+function startShift(auto = false) {
+  if (!auto) {
+    const selected = Array.from(document.querySelectorAll('.bed-pill.selected')).map(el => el.textContent);
+    if (selected.length === 0) return alert('Select at least one bed.');
+    alloc = selected;
+    obsFramework = document.getElementById('obsFramework').value;
+    localStorage.setItem('cdu_alloc', JSON.stringify(alloc));
+    localStorage.setItem('cdu_frame', obsFramework);
+  }
+  
+  if (!localStorage.getItem('cdu_start')) {
+    localStorage.setItem('cdu_start', Date.now().toString());
+  }
+  
+  alloc.forEach(b => {
+    if(!db[b] || typeof db[b] !== 'object') db[b] = {};
+    if(!db[b].obs) db[b].obs = [];
+    if(!db[b].bm) db[b].bm = [];
+    if(!db[b].events) db[b].events = [];
+    if(!db[b].admit) db[b].admit = [];
+    if(!db[b].bowel) db[b].bowel = [];
+    if(!db[b].dressings) db[b].dressings = [];
+    if(!db[b].bp) db[b].bp = {lsys:'', ldia:'', ssys:'', sdia:''};
+    if(!db[b].amy) db[b].amy = {sac:'', groin:'', heels:'', elbows:''};
+    if(!db[b].food) db[b].food = {b:'', l:'', d:''};
+    if(!db[b].turn) db[b].turn = Array(6).fill('');
+    if(!db[b].fluid) db[b].fluid = Array(13).fill(null).map(()=>({i:'', o:''}));
+    if(!db[b].reminders) db[b].reminders = [];
+  });
+  saveDB();
+  
+  if (!alloc.includes(curBed)) curBed = alloc[0];
+  document.getElementById('setupView').classList.add('hidden');
+  document.getElementById('mainView').classList.remove('hidden');
+  renderUI();
+}
+
+function saveDB() { localStorage.setItem('cdu_db', JSON.stringify(db)); }
+function toggleNight(val) { isNight = val; document.body.setAttribute('data-theme', isNight ? 'night' : 'day'); renderUI(); }
+function setBed(b) { curBed = b; showSummary = false; renderUI(); }
+function setSec(s) { curSec = s; showSummary = false; renderUI(); }
+function toggleSummary() { showSummary = true; renderUI(); }
+
+function renderUI() {
+  let tabsHtml = `<button class="tab-btn ${showSummary ? 'active-summary' : ''}" onclick="toggleSummary()">Handover Summary</button>`;
+  tabsHtml += alloc.map(b => `<button class="tab-btn ${b===curBed && !showSummary ?'active-bed':''}" onclick="setBed('${b}')">${b}</button>`).join('');
+  document.getElementById('bedTabs').innerHTML = tabsHtml;
+  
+  document.getElementById('subNav').innerHTML = showSummary ? '' : sections.map(s => `<button class="tab-btn ${s.id===curSec?'active-sec':''}" onclick="setSec('${s.id}')">${s.lbl}</button>`).join('');
+  renderContent();
+}
+
+function updateField(bed, sec, idx, prop, val) {
+  if (idx !== null && prop !== null) db[bed][sec][idx][prop] = val;
+  else if (idx !== null) db[bed][sec][idx] = val;
+  else if (prop !== null) db[bed][sec][prop] = val;
+  else db[bed][sec] = val;
+  saveDB();
+}
+
+function validateInput(el, type, val) {
+  if(val === '') { el.style.borderColor = 'var(--border)'; el.style.borderWidth = '1px'; return; }
+  const v = parseFloat(val);
+  let err = false;
+  if (type === 'hr' && (v < 20 || v > 300)) err = true;
+  if (type === 'rr' && (v < 4 || v > 60)) err = true;
+  if (type === 'sys' && (v < 40 || v > 300)) err = true;
+  if (type === 'dia' && (v < 20 || v > 200)) err = true;
+  if (type === 't' && (v < 30 || v > 45)) err = true;
+  el.style.borderColor = err ? 'var(--red)' : 'var(--border)';
+  el.style.borderWidth = err ? '2px' : '1px';
+}
+
+        function refreshN2(idx) {
+  const r = db[curBed].obs[idx];
+  const sc = calcN2(r);
+  const bg = sc >= 7 ? 'bg-red' : (sc >= 5 ? 'bg-amber' : (sc > 0 ? 'bg-amber' : 'bg-green'));
+  const badge = document.getElementById(`n2-badge-${idx}`);
+  if (badge) { badge.className = `badge ${bg}`; badge.textContent = `Score: ${sc}`; }
+}
+
+function refreshBM(idx) {
+  const r = db[curBed].bm[idx];
+  const v = parseFloat(r.val);
+  let bg = 'bg-green', txt = 'Pending';
+  if(v) { bg = v<4?'bg-red':(v>11?'bg-red':'bg-green'); txt = v<4?'HYPO':(v>11?'HIGH':'TARGET'); }
+  const badge = document.getElementById(`bm-badge-${idx}`);
+  if (badge) { badge.className = `badge ${bg}`; badge.textContent = txt; }
+}
+
+function refreshBP() {
+  const d = db[curBed].bp;
+  const l = parseFloat(d.lsys)||0, s = parseFloat(d.ssys)||0, drop = l - s;
+  const bg = (!l||!s) ? 'bg-green' : (drop>=20 ? 'bg-red' : 'bg-green');
+  const txt = (!l||!s) ? 'Normal' : (drop>=20 ? `Drop (-${drop})` : `Normal (${drop})`);
+  const badge = document.getElementById(`bp-badge`);
+  if (badge) { badge.className = `badge ${bg}`; badge.textContent = txt; }
+}
+
+function refreshFluid() {
+  let inT=0, outT=0; db[curBed].fluid.forEach(f=>{ inT+=parseFloat(f.i)||0; outT+=parseFloat(f.o)||0; });
+  const el = document.getElementById('fluid-totals');
+  if (el) el.innerHTML = `<span>In: ${inT}</span><span>Out: ${outT}</span><span>Net: ${inT-outT}</span>`;
+}
+
+function showInfo(type) {
+  const title = document.getElementById('infoTitle');
+  const body = document.getElementById('infoBody');
+  if (type === 'obs') {
+    title.innerText = obsFramework === 'NEWS2' ? 'NEWS2 Parameters' : 'RESTORE2 Parameters';
+    body.innerHTML = obsFramework === 'NEWS2' 
+      ? '<b>Score 3:</b> RR &le;8 or &ge;25 | SpO2 &le;91 | Sys BP &le;90 or &ge;220 | HR &le;40 or &ge;131 | Temp &le;35.0<br><br><b>Score 2:</b> RR 21-24 | SpO2 92-93 | On Oxygen | Sys BP 91-100 | HR 111-130 | Temp &ge;39.1<br><br><b>Score 1:</b> RR 9-11 | SpO2 94-95 | Sys BP 101-110 | HR 41-50 or 91-110 | Temp 35.1-36.0 or 38.1-39.0'
+      : '<b>RESTORE2</b> uses the standard scoring framework for vital signs but includes soft signs of deterioration.<br><br>Check for: Changes in mobility, confusion, reduced appetite or "not their usual self". Escalate based on your local care home pathway.';
+  } else if (type === 'bowel') {
+    title.innerText = 'Bristol Stool Scale';
+    body.innerHTML = '<b>Type 1:</b> Separate hard lumps, like nuts (hard to pass).<br><b>Type 2:</b> Sausage-shaped but lumpy.<br><b>Type 3:</b> Like a sausage but with cracks on its surface.<br><b>Type 4:</b> Like a sausage or snake, smooth and soft.<br><b>Type 5:</b> Soft blobs with clear-cut edges (passed easily).<br><b>Type 6:</b> Fluffy pieces with ragged edges, a mushy stool.<br><b>Type 7:</b> Watery, no solid pieces (entirely liquid).';
+  }
+  document.getElementById('infoModal').classList.remove('hidden');
+}
+
+function renderContent() {
+  const area = document.getElementById('contentArea');
+  
+  if (showSummary) {
+    let h = '';
+    alloc.forEach(b => {
+      const d = db[b];
+      if (!d) return;
+      let hasAlerts = false;
+      let sectionsHtml = '';
+      
+      let obsTxt = '';
+      if (d.obs && d.obs.length > 0) {
+        obsTxt += d.obs.map(l => {
+          const sc = calcN2(l);
+          if (sc >= 5) hasAlerts = true;
+          let txt = `${l.time||'--:--'} - ${obsFramework} Score ${sc} (RR ${l.rr||'-'}, SpO2 ${l.spo2||'-'}%, ${l.o2||'Air'}, BP ${l.sys||'-'}/${l.dia||'-'}, HR ${l.hr||'-'}, ${l.acvpu||'Alert'}, Temp ${l.t||'-'}°C)`;
+          return sc >= 5 ? `<b style="color:var(--red)">${txt}</b>` : txt;
+        }).join('<br>');
+      }
+      
+      if (d.bm && d.bm.length > 0) {
+        if (obsTxt) obsTxt += '<br><br>';
+        obsTxt += d.bm.map(l => {
+          const v = parseFloat(l.val);
+          if (v < 4 || v > 11) hasAlerts = true;
+          let txt = `${l.time||'--:--'} - Glucose: ${l.val||'-'} mmol/L (${l.meal||'Unspecified'})`;
+          return (v < 4 || v > 11) ? `<b style="color:var(--red)">${txt}</b>` : txt;
+        }).join('<br>');
+      }
+      
+      if (obsTxt) sectionsHtml += `<div class="summary-sec"><b>Observations:</b><br>${obsTxt}</div>`;
+      
+      let iT=0, oT=0; 
+      if(d.fluid) d.fluid.forEach(f=>{ iT+=parseFloat(f.i)||0; oT+=parseFloat(f.o)||0; });
+      const net = iT-oT;
+      if (iT > 0 || oT > 0) {
+        let ftxt = `In: ${iT}ml | Out: ${oT}ml | Net: ${net}ml`;
+        if (net <= -500) {
+          hasAlerts = true;
+          ftxt = `<b style="color:var(--red)">${ftxt}</b>`;
+        }
+        sectionsHtml += `<div class="summary-sec"><b>Fluid Balance:</b><br>${ftxt}</div>`;
+      }
+      
+      let dietParts = [];
+      if (d.food && d.food.b) dietParts.push(`Breakfast: ${d.food.b}`);
+      if (d.food && d.food.l) dietParts.push(`Lunch: ${d.food.l}`);
+      if (d.food && d.food.d) dietParts.push(`Dinner: ${d.food.d}`);
+      let dietTxt = dietParts.join(' | ');
+      
+      let bowelTxt = '';
+      if (d.bowel && d.bowel.length > 0) {
+        bowelTxt = d.bowel.map(r => `${r.time||'--:--'} - ${r.amt||'-'} (${r.type||'-'})`).join('<br>');
+      }
+      
+      if (dietTxt || bowelTxt) {
+        let dHtml = '';
+        if (dietTxt) dHtml += `${dietTxt}<br>`;
+        if (bowelTxt) dHtml += `Bowels:<br>${bowelTxt}`;
+        sectionsHtml += `<div class="summary-sec"><b>Diet & Bowels:</b><br>${dHtml}</div>`;
+      }
+      
+      let skinParts = [];
+      if (d.amy && d.amy.sac) skinParts.push(`Sacrum (${d.amy.sac})`);
+      if (d.amy && d.amy.groin) skinParts.push(`Groin (${d.amy.groin})`);
+      if (d.amy && d.amy.heels) skinParts.push(`Heels (${d.amy.heels})`);
+      if (d.amy && d.amy.elbows) skinParts.push(`Elbows (${d.amy.elbows})`);
+      let skinSummary = skinParts.length > 0 ? `Checks: ${skinParts.join(', ')}` : '';
+      
+      const tTimes = isNight ? ['20:00','22:00','00:00','02:00','04:00','06:00'] : ['08:00','10:00','12:00','14:00','16:00','18:00'];
+      let turnDetails = '';
+      if(d.turn) turnDetails = d.turn.map((t, i) => t !== '' ? `${tTimes[i]} - ${t}` : null).filter(Boolean).join('<br>');
+      if (turnDetails) turnDetails = `Turns:<br>${turnDetails}`;
+      
+      let skintxt = '';
+      if (d.dressings && d.dressings.length > 0) {
+        skintxt = `Dressings:<br>` + d.dressings.map(dr => `${dr.val || 'Unnamed'} (Due: <b>${calcDue(dr.date)}</b>)`).join('<br>');
+      }
+
+      let skinGroup = [skinSummary, turnDetails, skintxt].filter(Boolean).join('<br><br>');
+      if (skinGroup) sectionsHtml += `<div class="summary-sec"><b>Skin & Repositioning:</b><br>${skinGroup}</div>`;
+
+      if (d.events && d.events.length > 0) {
+        let eventTxt = d.events.map(r => `${r.time||'--:--'} - ${r.val||''}`).join('<br>');
+        sectionsHtml += `<div class="summary-sec"><b>Narrative Notes:</b><br>${eventTxt}</div>`;
+      }
+
+      if (d.reminders && d.reminders.length > 0) {
+        let remTxt = d.reminders.map(r => `<b>${r.time||'--:--'} - ${r.task||'Unnamed Task'}:</b> ${r.outcome||'Pending'}`).join('<br>');
+        sectionsHtml += `<div class="summary-sec"><b>Tasks / Reminders:</b><br>${remTxt}</div>`;
+      }
+      
+      if (d.admit && d.admit.length > 0) {
+        let admitTxt = d.admit.map(r => `- ${r.val||''}`).join('<br>');
+        sectionsHtml += `<div class="summary-sec"><b>Admissions Property:</b><br>${admitTxt}</div>`;
+      }
+
+      if (!sectionsHtml) {
+        sectionsHtml = `<p style="color:var(--text-sub); font-size:0.9rem;">No data recorded yet.</p>`;
+        hasAlerts = false;
+      }
+
+      h += `<div class="card" ${hasAlerts ? 'style="border-left:4px solid var(--red);"' : 'style="border-left:4px solid var(--green);"'} >
+        <h2 style="color:var(--navy); margin-bottom:12px; font-size:1.2rem;">${b}</h2>
+        ${sectionsHtml}
+      </div>`;
+    });
+    area.innerHTML = h || '<p style="text-align:center; padding:20px; color:var(--text-sub);">No active patients.</p>';
+    return;
+  }
+
+  if (!db[curBed]) return;
+  const d = db[curBed];
+  let h = '';
+
+  if (curSec === 'obs') {
+    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('obs')">+ Add ${obsFramework}</button>
+            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('obs')">Info</button>
+          </div>`;
+    d.obs.forEach((r, i) => {
+      const sc = calcN2(r);
+      const bg = sc >= 7 ? 'bg-red' : (sc >= 5 ? 'bg-amber' : (sc > 0 ? 'bg-amber' : 'bg-green'));
+      h += `<div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span id="n2-badge-${i}" class="badge ${bg}">Score: ${sc}</span>
+          <button class="btn btn-danger btn-sm" onclick="rmArr('obs', ${i})">X</button>
         </div>
-        <div class="modal-content">
-            <div class="input-group">
-                <label class="input-label">Heart Rate</label>
-                <div class="input-box" id="hrBox" onclick="setActive('hrBox')"></div>
-            </div>
-            <div class="input-group">
-                <label class="input-label">Respiratory Rate</label>
-                <div class="input-box" id="rrBox" onclick="setActive('rrBox')"></div>
-            </div>
-            <div class="input-group">
-                <label class="input-label">Blood Pressure (Systolic)</label>
-                <div class="input-box" id="sysBox" onclick="setActive('sysBox')"></div>
-            </div>
-            <div class="input-group">
-                <label class="input-label">Blood Pressure (Diastolic)</label>
-                <div class="input-box" id="diaBox" onclick="setActive('diaBox')"></div>
-            </div>
+        <div class="row">
+          <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','obs',${i},'time',this.value)"></div>
+          <div><label>RR</label><input type="number" min="0" max="60" value="${r.rr||''}" oninput="updateField('${curBed}','obs',${i},'rr',this.value); validateInput(this, 'rr', this.value); refreshN2(${i})"></div>
+          <div><label>SpO2%</label><input type="number" min="0" max="100" value="${r.spo2||''}" oninput="updateField('${curBed}','obs',${i},'spo2',this.value); refreshN2(${i})"></div>
         </div>
+        <div class="row">
+          <div><label>Air/O2</label><select onchange="updateField('${curBed}','obs',${i},'o2',this.value); refreshN2(${i})"><option>Air</option><option ${r.o2==='O2'?'selected':''}>O2</option></select></div>
+          <div><label>BP (Sys/Dia)</label><div class="bp-pair"><input type="number" min="30" max="250" value="${r.sys||''}" oninput="updateField('${curBed}','obs',${i},'sys',this.value); validateInput(this, 'sys', this.value); refreshN2(${i})"><span>/</span><input type="number" min="20" max="200" value="${r.dia||''}" oninput="updateField('${curBed}','obs',${i},'dia',this.value); validateInput(this, 'dia', this.value);"></div></div>
+        </div>
+        <div class="row">
+          <div><label>HR</label><input type="number" min="0" max="250" value="${r.hr||''}" oninput="updateField('${curBed}','obs',${i},'hr',this.value); validateInput(this, 'hr', this.value); refreshN2(${i})"></div>
+          <div><label>ACVPU</label><select onchange="updateField('${curBed}','obs',${i},'acvpu',this.value); refreshN2(${i})"><option>Alert</option><option ${r.acvpu==='CVPU'?'selected':''}>CVPU</option></select></div>
+          <div><label>Temp</label><input type="number" step="0.1" min="30" max="45" value="${r.t||''}" oninput="updateField('${curBed}','obs',${i},'t',this.value); validateInput(this, 't', this.value); refreshN2(${i})"></div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (curSec === 'bm') {
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('bm')">+ Add Glucose</button>`;
+    d.bm.forEach((r, i) => {
+      const v = parseFloat(r.val);
+      let bg = 'bg-green', txt = 'Pending';
+      if(v) { bg = v<4?'bg-red':(v>11?'bg-red':'bg-green'); txt = v<4?'HYPO':(v>11?'HIGH':'TARGET'); }
+      h += `<div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span id="bm-badge-${i}" class="badge ${bg}">${txt}</span>
+          <button class="btn btn-danger btn-sm" onclick="rmArr('bm', ${i})">X</button>
+        </div>
+        <div class="row">
+          <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','bm',${i},'time',this.value)"></div>
+          <div><label>Meal</label><select onchange="updateField('${curBed}','bm',${i},'meal',this.value)">${opts(['','Pre-Breakfast','Post-Breakfast','Pre-Lunch','Post-Lunch','Pre-Dinner','Post-Dinner','Night'], r.meal)}</select></div>
+          <div><label>mmol/L</label><input type="number" step="0.1" min="0" max="50" value="${r.val||''}" oninput="updateField('${curBed}','bm',${i},'val',this.value); refreshBM(${i})"></div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (curSec === 'bp') {
+    const l = parseFloat(d.bp.lsys)||0, s = parseFloat(d.bp.ssys)||0, drop = l - s;
+    const bg = (!l||!s) ? 'bg-green' : (drop>=20 ? 'bg-red' : 'bg-green');
+    const txt = (!l||!s) ? 'Normal' : (drop>=20 ? `Drop (-${drop})` : `Normal (${drop})`);
+    h += `<div class="card">
+      <span id="bp-badge" class="badge ${bg}" style="margin-bottom:12px;">${txt}</span>
+      <div class="row">
+        <div><label>Lying BP (Sys/Dia)</label><div class="bp-pair"><input type="number" min="30" max="250" value="${d.bp.lsys}" oninput="updateField('${curBed}','bp',null,'lsys',this.value); validateInput(this, 'sys', this.value); refreshBP()"><span>/</span><input type="number" min="20" max="200" value="${d.bp.ldia}" oninput="updateField('${curBed}','bp',null,'ldia',this.value); validateInput(this, 'dia', this.value);"></div></div>
+      </div>
+      <div class="row">
+        <div><label>Standing BP (Sys/Dia)</label><div class="bp-pair"><input type="number" min="30" max="250" value="${d.bp.ssys}" oninput="updateField('${curBed}','bp',null,'ssys',this.value); validateInput(this, 'sys', this.value); refreshBP()"><span>/</span><input type="number" min="20" max="200" value="${d.bp.sdia}" oninput="updateField('${curBed}','bp',null,'sdia',this.value); validateInput(this, 'dia', this.value);"></div></div>
+      </div>
+    </div>`;
+  }
+
+  if (curSec === 'fluid') {
+    const times = isNight ? ['19:00','20:00','21:00','22:00','23:00','00:00','01:00','02:00','03:00','04:00','05:00','06:00','07:00'] : ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+    let inT=0, outT=0; d.fluid.forEach(f=>{ inT+=parseFloat(f.i)||0; outT+=parseFloat(f.o)||0; });
+    h += `<div id="fluid-totals" class="card" style="display:flex; justify-content:space-between; font-weight:600; padding:12px;"><span>In: ${inT}</span><span>Out: ${outT}</span><span>Net: ${inT-outT}</span></div><div class="card">`;
+    times.forEach((t, i) => {
+      h += `<div class="row" style="align-items:center; margin-bottom:6px;">
+        <span style="width:45px; font-weight:600; font-size:0.9rem;">${t}</span>
+        <input type="number" min="0" max="5000" placeholder="In" value="${d.fluid[i].i}" oninput="updateField('${curBed}','fluid',${i},'i',this.value); refreshFluid()">
+        <input type="number" min="0" max="5000" placeholder="Out" value="${d.fluid[i].o}" oninput="updateField('${curBed}','fluid',${i},'o',this.value); refreshFluid()">
+      </div>`;
+    });
+    h += `</div>`;
+  }
+
+  if (curSec === 'bowel') {
+    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('bowel')">+ Add Bowel Record</button>
+            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('bowel')">Info</button>
+          </div>`;
+    d.bowel.forEach((r, i) => {
+      h += `<div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <b>Entry ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('bowel', ${i})">X</button>
+        </div>
+        <div class="row">
+          <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','bowel',${i},'time',this.value)"></div>
+          <div><label>Amount</label><select onchange="updateField('${curBed}','bowel',${i},'amt',this.value)">${opts(['','Small','Medium','Large','Smear'], r.amt)}</select></div>
+        </div>
+        <div class="row">
+          <div><label>Bristol Type</label><select onchange="updateField('${curBed}','bowel',${i},'type',this.value)">${opts(['','Type 1','Type 2','Type 3','Type 4','Type 5','Type 6','Type 7','BNO'], r.type)}</select></div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (curSec === 'amy') {
+    h += `<div class="card"><button class="btn btn-primary" style="margin-bottom:16px; background:var(--teal);" onclick="markSkinFine()">Mark All Fine</button>
+    <div class="row">
+      <div><label>Sacrum</label><select class="skin-sel" onchange="updateField('${curBed}','amy',null,'sac',this.value)">${opts(['','Fine','Red','Broken'], d.amy.sac)}</select></div>
+      <div><label>Groin</label><select class="skin-sel" onchange="updateField('${curBed}','amy',null,'groin',this.value)">${opts(['','Fine','Red','Broken'], d.amy.groin)}</select></div>
     </div>
-
-    <!-- Custom Keypad -->
-    <div class="keypad" id="clinicalKeypad" style="display: none;">
-        <button class="key" onclick="typeNumber('1')">1</button>
-        <button class="key" onclick="typeNumber('2')">2</button>
-        <button class="key" onclick="typeNumber('3')">3</button>
-        <button class="key" onclick="typeNumber('4')">4</button>
-        <button class="key" onclick="typeNumber('5')">5</button>
-        <button class="key" onclick="typeNumber('6')">6</button>
-        <button class="key" onclick="typeNumber('7')">7</button>
-        <button class="key" onclick="typeNumber('8')">8</button>
-        <button class="key" onclick="typeNumber('9')">9</button>
-        <button class="key key-action" onclick="backspace()">⌫</button>
-        <button class="key" onclick="typeNumber('0')">0</button>
-        <button class="key key-next" id="nextButton" onclick="handleNext()">Next ➔</button>
+    <div class="row">
+      <div><label>Heels</label><select class="skin-sel" onchange="updateField('${curBed}','amy',null,'heels',this.value)">${opts(['','Fine','Red','Broken'], d.amy.heels)}</select></div>
+      <div><label>Elbows</label><select class="skin-sel" onchange="updateField('${curBed}','amy',null,'elbows',this.value)">${opts(['','Fine','Red','Broken'], d.amy.elbows)}</select></div>
     </div>
+    </div>`;
 
-      <script>
-        let patients = JSON.parse(localStorage.getItem('patients')) || [];
-        let currentActiveInput = null;
-        let currentPatientId = null;
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('dressings')">+ Add Dressing</button>`;
+    d.dressings.forEach((r, i) => {
+      h += `<div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <b>Dressing ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('dressings', ${i})">X</button>
+        </div>
+        <div class="row">
+          <div><label>Location</label><input type="text" placeholder="e.g. Sacrum" value="${r.val||''}" oninput="updateField('${curBed}','dressings',${i},'val',this.value)"></div>
+        </div>
+        <div class="row" style="align-items:center;">
+          <div><label>Written Date</label><input type="date" value="${r.date||''}" onchange="updateField('${curBed}','dressings',${i},'date',this.value); renderContent()"></div>
+          <div style="flex:0 0 auto;"><button class="btn btn-sm" style="border:1px solid var(--border);" onclick="setNoDateArr(${i})">No Date</button></div>
+        </div>
+        <div style="font-size:0.85rem; color:var(--text-sub);">Next Due: <b>${calcDue(r.date)}</b></div>
+      </div>`;
+    });
+    if (d.dressings.length === 0) h += `<p style="color:var(--text-sub); text-align:center; padding-bottom:12px;">No dressings recorded.</p>`;
+  }
 
-        function saveToLocal() {
-            localStorage.setItem('patients', JSON.stringify(patients));
-        }
+  if (curSec === 'food') {
+    const fOps = ['','100%','75%','50%','25%','0%','Refused','NBM'];
+    h += `<div class="card">
+      <div class="row"><div><label>Breakfast</label><select onchange="updateField('${curBed}','food',null,'b',this.value)">${opts(fOps, d.food.b)}</select></div></div>
+      <div class="row"><div><label>Lunch</label><select onchange="updateField('${curBed}','food',null,'l',this.value)">${opts(fOps, d.food.l)}</select></div></div>
+      <div class="row"><div><label>Dinner</label><select onchange="updateField('${curBed}','food',null,'d',this.value)">${opts(fOps, d.food.d)}</select></div></div>
+    </div>`;
+  }
 
-        function addPatient() {
-            const name = prompt("Enter patient name or bed number:");
-            if (name) {
-                patients.push({ id: Date.now(), name, vitals: [], fluids: 0, events: [] });
-                saveToLocal();
-                renderWardView();
-            }
-        }
+  if (curSec === 'turn') {
+    const tTimes = isNight ? ['20:00','22:00','00:00','02:00','04:00','06:00'] : ['08:00','10:00','12:00','14:00','16:00','18:00'];
+    h += `<div class="card">`;
+    tTimes.forEach((t, i) => {
+      h += `<div class="row" style="align-items:center; margin-bottom:8px;">
+        <span style="width:45px; font-weight:600; font-size:0.9rem;">${t}</span>
+        <select onchange="updateField('${curBed}','turn',${i},null,this.value)">${opts(['', 'Back', 'Left', 'Right', 'Chair', 'Walking', 'Refused'], d.turn[i])}</select>
+      </div>`;
+    });
+    h += `</div>`;
+  }
 
-        function renderWardView() {
-            const wardView = document.getElementById('wardView');
-            wardView.innerHTML = '';
-            
-            if (patients.length === 0) {
-                wardView.innerHTML = '<p style="text-align:center; margin-top:20px; color:var(--muted)">No patients added. Tap "+ Add Patient" to start setting up your bay.</p>';
-                return;
-            }
-
-            patients.forEach(p => {
-                wardView.innerHTML += `
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">${p.name}</div>
-                            <div class="badge amber">NEWS: 0</div>
-                        </div>
-                        <div class="module-row">
-                            <button class="module-btn" onclick="openVitals(${p.id})">Vitals</button>
-                            <button class="module-btn">Fluids</button>
-                            <button class="module-btn">Events</button>
-                            <button class="module-btn">Handover</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function openVitals(id) {
-            currentPatientId = id;
-            document.getElementById('vitalsModal').classList.add('active');
-            document.getElementById('clinicalKeypad').style.display = 'grid';
-            setActive('hrBox');
-        }
-
-        function closeModal() {
-            document.getElementById('vitalsModal').classList.remove('active');
-            document.getElementById('clinicalKeypad').style.display = 'none';
-            currentActiveInput = null;
-            
-            const inputs = ['hrBox', 'rrBox', 'sysBox', 'diaBox'];
-            inputs.forEach(id => {
-                const box = document.getElementById(id);
-                box.innerText = '';
-                box.classList.remove('active', 'error');
-            });
-        }
-
-        function setActive(boxId) {
-            if (currentActiveInput) {
-                document.getElementById(currentActiveInput).classList.remove('active');
-            }
-            currentActiveInput = boxId;
-            document.getElementById(boxId).classList.add('active');
-            updateNextButton();
-        }
-
-        function typeNumber(num) {
-            if (!currentActiveInput) return;
-            const box = document.getElementById(currentActiveInput);
-            box.innerText += num;
-            box.classList.remove('error');
-        }
-
-        function backspace() {
-            if (!currentActiveInput) return;
-            const box = document.getElementById(currentActiveInput);
-            box.innerText = box.innerText.slice(0, -1);
-            box.classList.remove('error');
-        }
-
-        function validateInput(boxId, val) {
-            if (val === '') return false;
-            const num = parseInt(val, 10);
-            if (boxId === 'hrBox' && (num < 20 || num > 300)) return false;
-            if (boxId === 'rrBox' && (num < 4 || num > 60)) return false;
-            if (boxId === 'sysBox' && (num < 40 || num > 300)) return false;
-            if (boxId === 'diaBox' && (num < 20 || num > 200)) return false;
-            return true;
-        }
-
-        function handleNext() {
-            if (!currentActiveInput) return;
-            const box = document.getElementById(currentActiveInput);
-            const val = box.innerText;
-
-            if (!validateInput(currentActiveInput, val) && val !== '') {
-                box.classList.add('error');
-                return;
-            }
-
-            const flow = ['hrBox', 'rrBox', 'sysBox', 'diaBox'];
-            const currentIndex = flow.indexOf(currentActiveInput);
-
-            if (currentIndex < flow.length - 1) {
-                setActive(flow[currentIndex + 1]);
-            } else {
-                saveVitals(val);
-            }
-        }
-        
-        function saveVitals(diastolicVal) {
-            alert('Vitals saved to local storage');
-            closeModal();
-        }
-
-        function updateNextButton() {
-            const btn = document.getElementById('nextButton');
-            if (currentActiveInput === 'diaBox') {
-                btn.innerText = 'Save';
-            } else {
-                btn.innerText = 'Next ➔';
-            }
-        }
-
-        // Initialise app
-        renderWardView();
-    </script>
-</body>
-</html>
+  if (curSec === 'events') {
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('events')">+ Add Event</button>`;
+    d.events.forEach((r, i) => {
+      h += `<div class="card row" style="align-items:center;">
+        <input type="time" style="width:100px; flex:0 0 auto;" value="${r.time
