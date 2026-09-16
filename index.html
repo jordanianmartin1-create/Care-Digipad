@@ -1,1 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <title>Universal Digipad</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --bg: #f4f4f5;
+            --surface: #ffffff;
+            --text: #18181b;
+            --muted: #71717a;
+            --border: #e4e4e7;
+            --primary: #2563eb;
+            --danger: #ef4444;
+            --amber: #f59e0b;
+        }
+        
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; user-select: none; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 50vh; }
+        
+        .header { background: var(--surface); padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+        .header h1 { font-size: 20px; }
+        
+        .patient-list { padding: 12px; }
+        .card { background: var(--surface); border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .card-title { font-size: 18px; font-weight: bold; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: bold; background: var(--border); }
+        .badge.amber { background: var(--amber); color: white; }
+        
+        .module-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .module-btn { background: var(--bg); border: 1px solid var(--border); padding: 12px 4px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center; }
+        
+        /* Modals & Inputs */
+        .modal { display: none; position: fixed; inset: 0; background: var(--surface); z-index: 20; flex-direction: column; }
+        .modal.active { display: flex; }
+        .modal-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+        .modal-content { padding: 16px; overflow-y: auto; }
+        
+        .input-group { margin-bottom: 16px; }
+        .input-label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--muted); }
+        .input-box { width: 100%; padding: 16px; font-size: 24px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg); outline: none; }
+        .input-box.active { border-color: var(--primary); background: var(--surface); }
+        .input-box.error { border-color: var(--danger); background: #fef2f2; }
+        
+        /* Custom Keypad */
+        .keypad { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--border); display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; z-index: 30; }
+        .key { background: var(--surface); padding: 24px 0; font-size: 28px; font-weight: bold; border: none; text-align: center; }
+        .key:active { background: var(--border); }
+        .key-action { background: #e4e4e7; font-size: 20px; }
+        .key-next { background: var(--primary); color: white; }
+        .key-next:active { background: #1d4ed8; }
+        
+        /* Hide standard inputs for keypad use */
+        .readonly-input { pointer-events: none; }
+    </style>
+</head>
+<body>
 
+      <div class="header">
+        <h1>Universal Digipad</h1>
+        <button class="badge" onclick="addPatient()">+ Add Patient</button>
+    </div>
+
+    <div class="patient-list" id="wardView">
+        <!-- Patient tiles render here -->
+    </div>
+
+    <!-- Vitals Modal -->
+    <div class="modal" id="vitalsModal">
+        <div class="modal-header">
+            <h2 id="modalPatientName">Record Vitals</h2>
+            <button class="badge" onclick="closeModal()">Close</button>
+        </div>
+        <div class="modal-content">
+            <div class="input-group">
+                <label class="input-label">Heart Rate</label>
+                <div class="input-box" id="hrBox" onclick="setActive('hrBox')"></div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Respiratory Rate</label>
+                <div class="input-box" id="rrBox" onclick="setActive('rrBox')"></div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Blood Pressure (Systolic)</label>
+                <div class="input-box" id="sysBox" onclick="setActive('sysBox')"></div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Blood Pressure (Diastolic)</label>
+                <div class="input-box" id="diaBox" onclick="setActive('diaBox')"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Keypad -->
+    <div class="keypad" id="clinicalKeypad" style="display: none;">
+        <button class="key" onclick="typeNumber('1')">1</button>
+        <button class="key" onclick="typeNumber('2')">2</button>
+        <button class="key" onclick="typeNumber('3')">3</button>
+        <button class="key" onclick="typeNumber('4')">4</button>
+        <button class="key" onclick="typeNumber('5')">5</button>
+        <button class="key" onclick="typeNumber('6')">6</button>
+        <button class="key" onclick="typeNumber('7')">7</button>
+        <button class="key" onclick="typeNumber('8')">8</button>
+        <button class="key" onclick="typeNumber('9')">9</button>
+        <button class="key key-action" onclick="backspace()">⌫</button>
+        <button class="key" onclick="typeNumber('0')">0</button>
+        <button class="key key-next" id="nextButton" onclick="handleNext()">Next ➔</button>
+    </div>
+
+      <script>
+        let patients = JSON.parse(localStorage.getItem('patients')) || [];
+        let currentActiveInput = null;
+        let currentPatientId = null;
+
+        function saveToLocal() {
+            localStorage.setItem('patients', JSON.stringify(patients));
+        }
+
+        function addPatient() {
+            const name = prompt("Enter patient name or bed number:");
+            if (name) {
+                patients.push({ id: Date.now(), name, vitals: [], fluids: 0, events: [] });
+                saveToLocal();
+                renderWardView();
+            }
+        }
+
+        function renderWardView() {
+            const wardView = document.getElementById('wardView');
+            wardView.innerHTML = '';
+            
+            if (patients.length === 0) {
+                wardView.innerHTML = '<p style="text-align:center; margin-top:20px; color:var(--muted)">No patients added. Tap "+ Add Patient" to start setting up your bay.</p>';
+                return;
+            }
+
+            patients.forEach(p => {
+                wardView.innerHTML += `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">${p.name}</div>
+                            <div class="badge amber">NEWS: 0</div>
+                        </div>
+                        <div class="module-row">
+                            <button class="module-btn" onclick="openVitals(${p.id})">Vitals</button>
+                            <button class="module-btn">Fluids</button>
+                            <button class="module-btn">Events</button>
+                            <button class="module-btn">Handover</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function openVitals(id) {
+            currentPatientId = id;
+            document.getElementById('vitalsModal').classList.add('active');
+            document.getElementById('clinicalKeypad').style.display = 'grid';
+            setActive('hrBox');
+        }
+
+        function closeModal() {
+            document.getElementById('vitalsModal').classList.remove('active');
+            document.getElementById('clinicalKeypad').style.display = 'none';
+            currentActiveInput = null;
+            
+            const inputs = ['hrBox', 'rrBox', 'sysBox', 'diaBox'];
+            inputs.forEach(id => {
+                const box = document.getElementById(id);
+                box.innerText = '';
+                box.classList.remove('active', 'error');
+            });
+        }
+
+        function setActive(boxId) {
+            if (currentActiveInput) {
+                document.getElementById(currentActiveInput).classList.remove('active');
+            }
+            currentActiveInput = boxId;
+            document.getElementById(boxId).classList.add('active');
+            updateNextButton();
+        }
+
+        function typeNumber(num) {
+            if (!currentActiveInput) return;
+            const box = document.getElementById(currentActiveInput);
+            box.innerText += num;
+            box.classList.remove('error');
+        }
+
+        function backspace() {
+            if (!currentActiveInput) return;
+            const box = document.getElementById(currentActiveInput);
+            box.innerText = box.innerText.slice(0, -1);
+            box.classList.remove('error');
+        }
+
+        function validateInput(boxId, val) {
+            if (val === '') return false;
+            const num = parseInt(val, 10);
+            if (boxId === 'hrBox' && (num < 20 || num > 300)) return false;
+            if (boxId === 'rrBox' && (num < 4 || num > 60)) return false;
+            if (boxId === 'sysBox' && (num < 40 || num > 300)) return false;
+            if (boxId === 'diaBox' && (num < 20 || num > 200)) return false;
+            return true;
+        }
+
+        function handleNext() {
+            if (!currentActiveInput) return;
+            const box = document.getElementById(currentActiveInput);
+            const val = box.innerText;
+
+            if (!validateInput(currentActiveInput, val) && val !== '') {
+                box.classList.add('error');
+                return;
+            }
+
+            const flow = ['hrBox', 'rrBox', 'sysBox', 'diaBox'];
+            const currentIndex = flow.indexOf(currentActiveInput);
+
+            if (currentIndex < flow.length - 1) {
+                setActive(flow[currentIndex + 1]);
+            } else {
+                saveVitals(val);
+            }
+        }
+        
+        function saveVitals(diastolicVal) {
+            alert('Vitals saved to local storage');
+            closeModal();
+        }
+
+        function updateNextButton() {
+            const btn = document.getElementById('nextButton');
+            if (currentActiveInput === 'diaBox') {
+                btn.innerText = 'Save';
+            } else {
+                btn.innerText = 'Next ➔';
+            }
+        }
+
+        // Initialise app
+        renderWardView();
+    </script>
+</body>
+</html>
