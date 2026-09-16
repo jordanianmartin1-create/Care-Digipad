@@ -134,7 +134,8 @@
     <button class="btn btn-subtle" onclick="clearShift()">End Shift / Clear Data</button>
   </div>
 </div>
-<script>
+
+  <script>
 const allBeds = [
   'Bay 1 Bed 1','Bay 1 Bed 2', 'Bay 2 Bed 1','Bay 2 Bed 2','Bay 2 Bed 3','Bay 2 Bed 4',
   'Bay 3 Bed 1','Bay 3 Bed 2','Bay 3 Bed 3','Bay 3 Bed 4', 'Bay 4 Bed 1','Bay 4 Bed 2','Bay 4 Bed 3','Bay 4 Bed 4',
@@ -304,7 +305,8 @@ function validateInput(el, type, val) {
   el.style.borderColor = err ? 'var(--red)' : 'var(--border)';
   el.style.borderWidth = err ? '2px' : '1px';
 }
-  function refreshN2(idx) {
+
+    function refreshN2(idx) {
   const r = db[curBed].obs[idx];
   const sc = calcN2(r);
   const bg = sc >= 7 ? 'bg-red' : (sc >= 5 ? 'bg-amber' : (sc > 0 ? 'bg-amber' : 'bg-green'));
