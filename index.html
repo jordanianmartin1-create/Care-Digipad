@@ -98,7 +98,7 @@
 
 <div id="setupView" class="setup-container">
   <h2 style="margin-bottom:4px;">Allocation Manager</h2>
-  <p style="font-size:0.9rem; color:var(--text-sub); margin-bottom:16px;">Tap to add or remove patients for this shift.</p>
+  <p style="font-size:0.9rem; color:var(--text-sub); margin-bottom:16px;">Tap beds to assign them to your shift, or build your ward layout below.</p>
   
   <div style="margin-bottom: 20px;">
     <label style="font-size:1rem; color:var(--text);">Observation Framework</label>
@@ -106,6 +106,14 @@
       <option value="NEWS2">NEWS2 (Acute & Hospital)</option>
       <option value="RESTORE2">RESTORE2 (Care Home)</option>
     </select>
+  </div>
+
+  <div style="margin-bottom: 20px; padding: 12px; background: #fff; border: 1px solid var(--border); border-radius: 8px;">
+    <label style="font-size:1rem; color:var(--text); margin-bottom: 8px;">Add New Bed / Patient Name</label>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="newBedInput" placeholder="e.g. Bed 4, Smith" style="flex:1;">
+      <button class="btn btn-primary" style="margin-top:0; width:auto; padding:0 20px;" onclick="addNewBed()">Add</button>
+    </div>
   </div>
 
   <div id="activeBedsList"></div>
@@ -134,14 +142,17 @@
     <button class="btn btn-subtle" onclick="clearShift()">End Shift / Clear Data</button>
   </div>
 </div>
-
-  <script>
-const allBeds = [
-  'Bay 1 Bed 1','Bay 1 Bed 2', 'Bay 2 Bed 1','Bay 2 Bed 2','Bay 2 Bed 3','Bay 2 Bed 4',
-  'Bay 3 Bed 1','Bay 3 Bed 2','Bay 3 Bed 3','Bay 3 Bed 4', 'Bay 4 Bed 1','Bay 4 Bed 2','Bay 4 Bed 3','Bay 4 Bed 4',
-  'Bay 5 Bed 1','Bay 5 Bed 2','Bay 5 Bed 3','Bay 5 Bed 4', 'Side Room 1','Side Room 2','Side Room 3','Side Room 4',
-  'Side Room 5','Side Room 6','Side Room 7'
-];
+<script>
+let allBeds = [];
+try {
+  const savedAllBeds = localStorage.getItem('cdu_all_beds');
+  if (savedAllBeds) allBeds = JSON.parse(savedAllBeds);
+  if (!Array.isArray(allBeds) || allBeds.length === 0) {
+    allBeds = ['Bed 1', 'Bed 2', 'Bed 3', 'Bed 4']; // Default starter beds
+  }
+} catch(e) {
+  allBeds = ['Bed 1', 'Bed 2', 'Bed 3', 'Bed 4'];
+}
 
 const sections = [
   {id:'obs', lbl:'Observations'}, {id:'bm', lbl:'Glucose'}, {id:'bp', lbl:'L/S BP'}, 
@@ -202,6 +213,17 @@ function initSetup() {
   if (fwSelect) fwSelect.value = obsFramework;
   renderSetupGrid();
   if (alloc.length > 0) startShift(true);
+}
+
+function addNewBed() {
+  const input = document.getElementById('newBedInput');
+  const val = input.value.trim();
+  if (val && !allBeds.includes(val)) {
+    allBeds.push(val);
+    localStorage.setItem('cdu_all_beds', JSON.stringify(allBeds));
+    input.value = '';
+    renderSetupGrid();
+  }
 }
 
 function renderSetupGrid() {
@@ -305,8 +327,7 @@ function validateInput(el, type, val) {
   el.style.borderColor = err ? 'var(--red)' : 'var(--border)';
   el.style.borderWidth = err ? '2px' : '1px';
 }
-
-    function refreshN2(idx) {
+  function refreshN2(idx) {
   const r = db[curBed].obs[idx];
   const sc = calcN2(r);
   const bg = sc >= 7 ? 'bg-red' : (sc >= 5 ? 'bg-amber' : (sc > 0 ? 'bg-amber' : 'bg-green'));
@@ -622,8 +643,117 @@ function renderContent() {
     h += `</div>`;
   }
 
-  if (curSec === 'events') {
+    if (curSec === 'events') {
     h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('events')">+ Add Event</button>`;
     d.events.forEach((r, i) => {
       h += `<div class="card row" style="align-items:center;">
-        <input type="time" style="width:100px; flex:0 0 auto;" value="${r.time|
+        <input type="time" style="width:100px; flex:0 0 auto;" value="${r.time||''}" oninput="updateField('${curBed}','events',${i},'time',this.value)">
+        <input type="text" placeholder="Details" value="${r.val||''}" oninput="updateField('${curBed}','events',${i},'val',this.value)">
+        <button class="btn btn-danger btn-sm" style="flex:0 0 auto;" onclick="rmArr('events', ${i})">X</button>
+      </div>`;
+    });
+  }
+
+  if (curSec === 'reminders') {
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('reminders')">+ Add Task</button>`;
+    d.reminders.forEach((r, i) => {
+      h += `<div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <b>Task ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('reminders', ${i})">X</button>
+        </div>
+        <div class="row">
+          <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','reminders',${i},'time',this.value)"></div>
+          <div><label>Task</label><input type="text" placeholder="e.g. Bloods, ECG" value="${r.task||''}" oninput="updateField('${curBed}','reminders',${i},'task',this.value)"></div>
+        </div>
+        <div class="row">
+          <div><label>Outcome</label><input type="text" placeholder="Pending / Result..." value="${r.outcome||''}" oninput="updateField('${curBed}','reminders',${i},'outcome',this.value)"></div>
+        </div>
+      </div>`;
+    });
+    if (d.reminders.length === 0) h += `<p style="color:var(--text-sub); text-align:center; padding-bottom:12px;">No tasks added for this patient.</p>`;
+  }
+
+  if (curSec === 'admit') {
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('admit')">+ Add Property Item</button>`;
+    d.admit.forEach((r, i) => {
+      h += `<div class="card row" style="align-items:center;">
+        <input type="text" placeholder="Item description (e.g. Dentures, Gold Ring)" value="${r.val||''}" oninput="updateField('${curBed}','admit',${i},'val',this.value)">
+        <button class="btn btn-danger btn-sm" style="flex:0 0 auto;" onclick="rmArr('admit', ${i})">X</button>
+      </div>`;
+    });
+    if (d.admit.length === 0) h += `<p style="color:var(--text-sub); text-align:center; padding:20px 0;">No property logged yet.</p>`;
+  }
+
+  area.innerHTML = h;
+}
+
+function calcN2(e) {
+  let sc = 0; const r=parseFloat(e.rr), sp=parseFloat(e.spo2), sy=parseFloat(e.sys), h=parseFloat(e.hr), t=parseFloat(e.t);
+  if(r) sc += (r<=8||r>=25)?3: (r>=21)?2: (r<=11)?1:0;
+  if(sp) sc += (sp<=91)?3: (sp<=93)?2: (sp<=95)?1:0;
+  if(e.o2==='O2') sc += 2;
+  if(sy) sc += (sy<=90||sy>=220)?3: (sy<=100)?2: (sy<=110)?1:0;
+  if(h) sc += (h<=40||h>=131)?3: (h>=111)?2: (h<=50||h>=91)?1:0;
+  if(e.acvpu && e.acvpu!=='Alert') sc += 3;
+  if(t) sc += (t<=35.0)?3: (t>=39.1)?2: (t>=35.1&&t<=36.0 || t>=38.1&&t<=39.0)?1:0;
+  return sc;
+}
+
+function opts(arr, sel) { return arr.map(a => `<option ${a===sel?'selected':''}>${a}</option>`).join(''); }
+function tNow() { const d = new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+
+function addArr(k) { db[curBed][k].push({time: tNow(), val: ''}); saveDB(); renderContent(); }
+function rmArr(k, i) { db[curBed][k].splice(i, 1); saveDB(); renderContent(); }
+
+function markSkinFine() { 
+  db[curBed].amy.sac = 'Fine'; db[curBed].amy.groin = 'Fine'; 
+  db[curBed].amy.heels = 'Fine'; db[curBed].amy.elbows = 'Fine'; 
+  saveDB(); renderContent(); 
+}
+
+function setNoDateArr(i) {
+  const d = new Date();
+  db[curBed].dressings[i].date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  saveDB(); renderContent();
+}
+
+function calcDue(val) {
+  if (!val) return '-';
+  const d = new Date(val); d.setDate(d.getDate() + 3);
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+function clearShift() {
+  if (confirm("Are you sure you want to clear all data and end the shift?")) {
+    localStorage.removeItem('cdu_alloc');
+    localStorage.removeItem('cdu_db');
+    localStorage.removeItem('cdu_start');
+    localStorage.removeItem('cdu_frame');
+    location.reload();
+  }
+}
+
+function handleSwipe() {
+  if (showSummary || alloc.length <= 1) return;
+  const swipeThreshold = 50;
+  const diffX = touchEndX - touchStartX;
+  const diffY = touchEndY - touchStartY;
+  
+  if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > swipeThreshold) {
+    if (diffX < 0) cycleBed(1);
+    else cycleBed(-1);
+  }
+}
+
+function cycleBed(dir) {
+  let idx = alloc.indexOf(curBed);
+  idx += dir;
+  if (idx >= alloc.length) idx = 0;
+  if (idx < 0) idx = alloc.length - 1;
+  setBed(alloc[idx]);
+}
+
+initSetup();
+</script>
+</body>
+</html>
