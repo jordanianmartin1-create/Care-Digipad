@@ -134,8 +134,7 @@
     <button class="btn btn-subtle" onclick="clearShift()">End Shift / Clear Data</button>
   </div>
 </div>
-
-    <script>
+<script>
 const allBeds = [
   'Bay 1 Bed 1','Bay 1 Bed 2', 'Bay 2 Bed 1','Bay 2 Bed 2','Bay 2 Bed 3','Bay 2 Bed 4',
   'Bay 3 Bed 1','Bay 3 Bed 2','Bay 3 Bed 3','Bay 3 Bed 4', 'Bay 4 Bed 1','Bay 4 Bed 2','Bay 4 Bed 3','Bay 4 Bed 4',
@@ -305,8 +304,7 @@ function validateInput(el, type, val) {
   el.style.borderColor = err ? 'var(--red)' : 'var(--border)';
   el.style.borderWidth = err ? '2px' : '1px';
 }
-
-        function refreshN2(idx) {
+  function refreshN2(idx) {
   const r = db[curBed].obs[idx];
   const sc = calcN2(r);
   const bg = sc >= 7 ? 'bg-red' : (sc >= 5 ? 'bg-amber' : (sc > 0 ? 'bg-amber' : 'bg-green'));
@@ -345,7 +343,7 @@ function showInfo(type) {
     title.innerText = obsFramework === 'NEWS2' ? 'NEWS2 Parameters' : 'RESTORE2 Parameters';
     body.innerHTML = obsFramework === 'NEWS2' 
       ? '<b>Score 3:</b> RR &le;8 or &ge;25 | SpO2 &le;91 | Sys BP &le;90 or &ge;220 | HR &le;40 or &ge;131 | Temp &le;35.0<br><br><b>Score 2:</b> RR 21-24 | SpO2 92-93 | On Oxygen | Sys BP 91-100 | HR 111-130 | Temp &ge;39.1<br><br><b>Score 1:</b> RR 9-11 | SpO2 94-95 | Sys BP 101-110 | HR 41-50 or 91-110 | Temp 35.1-36.0 or 38.1-39.0'
-      : '<b>RESTORE2</b> uses the standard scoring framework for vital signs but includes soft signs of deterioration.<br><br>Check for: Changes in mobility, confusion, reduced appetite or "not their usual self". Escalate based on your local care home pathway.';
+      : '<b>RESTORE2</b> uses the standard scoring framework for vital signs but includes soft signs of deterioration.<br><br>Check for: Changes in mobility, confusion, reduced appetite, or "not their usual self". Escalate based on your local care home pathway.';
   } else if (type === 'bowel') {
     title.innerText = 'Bristol Stool Scale';
     body.innerHTML = '<b>Type 1:</b> Separate hard lumps, like nuts (hard to pass).<br><b>Type 2:</b> Sausage-shaped but lumpy.<br><b>Type 3:</b> Like a sausage but with cracks on its surface.<br><b>Type 4:</b> Like a sausage or snake, smooth and soft.<br><b>Type 5:</b> Soft blobs with clear-cut edges (passed easily).<br><b>Type 6:</b> Fluffy pieces with ragged edges, a mushy stool.<br><b>Type 7:</b> Watery, no solid pieces (entirely liquid).';
@@ -517,7 +515,7 @@ function renderContent() {
           <div><label>mmol/L</label><input type="number" step="0.1" min="0" max="50" value="${r.val||''}" oninput="updateField('${curBed}','bm',${i},'val',this.value); refreshBM(${i})"></div>
         </div>
       </div>`;
-    });
+  });
   }
 
   if (curSec === 'bp') {
@@ -626,4 +624,4 @@ function renderContent() {
     h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('events')">+ Add Event</button>`;
     d.events.forEach((r, i) => {
       h += `<div class="card row" style="align-items:center;">
-        <input type="time" style="width:100px; flex:0 0 auto;" value="${r.time
+        <input type="time" style="width:100px; flex:0 0 auto;" value="${r.time|
