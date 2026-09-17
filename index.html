@@ -49,7 +49,7 @@
   .row { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-end; }
   .row > div { flex: 1; }
   label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-sub); margin-bottom: 4px; }
-  input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); font-size: 0.95rem; }
+  input[type="text"], input[type="number"], input[type="time"], input[type="date"], select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); font-size: 0.95rem; }
   .bp-pair { display: flex; align-items: center; gap: 4px; }
   .bp-pair span { font-weight: bold; color: var(--text-sub); }
   
@@ -437,6 +437,11 @@ function renderContent() {
         }).join('<br>');
         sectionsHtml += `<div class="summary-sec"><b>Tasks / Reminders:</b><br>${remTxt}</div>`;
       }
+      
+      if (d.admit && d.admit.length > 0) {
+        let admitTxt = d.admit.map(r => `- ${r.val||''}`).join('<br>');
+        sectionsHtml += `<div class="summary-sec"><b>Admissions Property:</b><br>${admitTxt}</div>`;
+      }
 
       h += `<div class="card" ${hasAlerts ? 'style="border-left:4px solid var(--red);"' : 'style="border-left:4px solid var(--green);"'} >
         <h2 style="color:var(--navy); margin-bottom:12px; font-size:1.2rem;">${b}</h2>
@@ -445,7 +450,7 @@ function renderContent() {
     });
     area.innerHTML = h || '<p style="text-align:center; padding:20px; color:var(--text-sub);">No active patients.</p>';
     return;
-      }
+  }
     if (!db[curBed]) return;
   const d = db[curBed];
   let h = '';
@@ -453,7 +458,7 @@ function renderContent() {
   if (curSec === 'obs') {
     h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
             <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('obs')">+ Add Vitals</button>
-            <button class="badge bg-info" style="padding:12px;" onclick="showInfo('obs')">Chart Info</button>
+            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('obs')">Chart Info</button>
           </div>`;
     d.obs.forEach((r, i) => {
       const sc = calcN2(r);
@@ -468,7 +473,7 @@ function renderContent() {
       }
       h += `
         <div class="row">
-          <div><label>Time</label><select onchange="updateField('${curBed}','obs',${i},'time',this.value)">${generateTimeOpts(r.time)}</select></div>
+          <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','obs',${i},'time',this.value)"></div>
           <div><label>RR</label><input type="number" min="0" max="60" value="${r.rr||''}" oninput="updateField('${curBed}','obs',${i},'rr',this.value); validateInput(this, 'rr', this.value); refreshN2(${i})"></div>
           <div><label>SpO2%</label><input type="number" min="0" max="100" value="${r.spo2||''}" oninput="updateField('${curBed}','obs',${i},'spo2',this.value); refreshN2(${i})"></div>
         </div>
@@ -486,7 +491,10 @@ function renderContent() {
   }
 
   if (curSec === 'bm') {
-    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('bm')">+ Add Glucose</button>`;
+    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('bm')">+ Add Glucose</button>
+            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('bm')">Targets</button>
+          </div>`;
     d.bm.forEach((r, i) => {
       const v = parseFloat(r.val);
       let bg = 'bg-green', txt = 'Pending';
@@ -497,23 +505,126 @@ function renderContent() {
           <button class="btn btn-danger btn-sm" onclick="rmArr('bm', ${i})">X</button>
         </div>
         <div class="row">
-          <div><label>Time</label><select onchange="updateField('${curBed}','bm',${i},'time',this.value)">${generateTimeOpts(r.time)}</select></div>
+          <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','bm',${i},'time',this.value)"></div>
           <div><label>Meal</label><select onchange="updateField('${curBed}','bm',${i},'meal',this.value)">${opts(['','Pre-Breakfast','Post-Breakfast','Pre-Lunch','Post-Lunch','Pre-Dinner','Post-Dinner','Night'], r.meal)}</select></div>
           <div><label>mmol/L</label><input type="number" step="0.1" value="${r.val||''}" oninput="updateField('${curBed}','bm',${i},'val',this.value); refreshBM(${i})"></div>
         </div>
       </div>`;
-  });
+    });
+  }
+
+  if (curSec === 'bp') {
+    const l = parseFloat(d.bp.lsys)||0, s = parseFloat(d.bp.ssys)||0, drop = l - s;
+    const bg = (!l||!s) ? 'bg-green' : (drop>=20 ? 'bg-red' : 'bg-green');
+    const txt = (!l||!s) ? 'Normal' : (drop>=20 ? `Drop (-${drop})` : `Normal (${drop})`);
+    h += `<div class="card">
+      <span id="bp-badge" class="badge ${bg}" style="margin-bottom:12px;">${txt}</span>
+      <div class="row">
+        <div><label>Lying BP (Sys/Dia)</label><div class="bp-pair"><input type="number" value="${d.bp.lsys}" oninput="updateField('${curBed}','bp',null,'lsys',this.value); validateInput(this, 'sys', this.value); refreshBP()"><span>/</span><input type="number" value="${d.bp.ldia}" oninput="updateField('${curBed}','bp',null,'ldia',this.value); validateInput(this, 'dia', this.value);"></div></div>
+      </div>
+      <div class="row">
+        <div><label>Standing BP (Sys/Dia)</label><div class="bp-pair"><input type="number" value="${d.bp.ssys}" oninput="updateField('${curBed}','bp',null,'ssys',this.value); validateInput(this, 'sys', this.value); refreshBP()"><span>/</span><input type="number" value="${d.bp.sdia}" oninput="updateField('${curBed}','bp',null,'sdia',this.value); validateInput(this, 'dia', this.value);"></div></div>
+      </div>
+    </div>`;
+  }
+
+  if (curSec === 'fluid') {
+    const times = isNight ? ['19:00','20:00','21:00','22:00','23:00','00:00','01:00','02:00','03:00','04:00','05:00','06:00','07:00'] : ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+    let inT=0, outT=0; d.fluid.forEach(f=>{ inT+=parseFloat(f.i)||0; outT+=parseFloat(f.o)||0; });
+    h += `<div id="fluid-totals" class="card" style="display:flex; justify-content:space-between; font-weight:600; padding:12px;"><span>In: ${inT}</span><span>Out: ${outT}</span><span>Net: ${inT-outT}</span></div><div class="card">`;
+    times.forEach((t, i) => {
+      h += `<div class="row" style="align-items:center; margin-bottom:6px;">
+        <span style="width:45px; font-weight:600; font-size:0.9rem;">${t}</span>
+        <input type="number" placeholder="In" value="${d.fluid[i].i}" oninput="updateField('${curBed}','fluid',${i},'i',this.value); refreshFluid()">
+        <input type="number" placeholder="Out" value="${d.fluid[i].o}" oninput="updateField('${curBed}','fluid',${i},'o',this.value); refreshFluid()">
+      </div>`;
+    });
+    h += `</div>`;
+  }
+
+  if (curSec === 'bowel') {
+    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('bowel')">+ Add Bowel Record</button>
+            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('bowel')">Chart Info</button>
+          </div>`;
+    d.bowel.forEach((r, i) => {
+      h += `<div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <b>Entry ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('bowel', ${i})">X</button>
+        </div>
+        <div class="row">
+          <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','bowel',${i},'time',this.value)"></div>
+          <div><label>Amount</label><select onchange="updateField('${curBed}','bowel',${i},'amt',this.value)">${opts(['','Small','Medium','Large','Smear'], r.amt)}</select></div>
+        </div>
+        <div class="row">
+          <div><label>Bristol Type</label><select onchange="updateField('${curBed}','bowel',${i},'type',this.value)">${opts(['','Type 1','Type 2','Type 3','Type 4','Type 5','Type 6','Type 7','BNO'], r.type)}</select></div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (curSec === 'amy') {
+    h += `<div class="card"><button class="btn btn-primary" style="margin-bottom:16px; background:var(--teal);" onclick="markSkinFine()">Mark All Fine</button>
+    <div class="row">
+      <div><label>Sacrum</label><select onchange="updateField('${curBed}','amy',null,'sac',this.value)">${opts(['','Fine','Red','Broken'], d.amy.sac)}</select></div>
+      <div><label>Groin</label><select onchange="updateField('${curBed}','amy',null,'groin',this.value)">${opts(['','Fine','Red','Broken'], d.amy.groin)}</select></div>
+    </div>
+    <div class="row">
+      <div><label>Heels</label><select onchange="updateField('${curBed}','amy',null,'heels',this.value)">${opts(['','Fine','Red','Broken'], d.amy.heels)}</select></div>
+      <div><label>Elbows</label><select onchange="updateField('${curBed}','amy',null,'elbows',this.value)">${opts(['','Fine','Red','Broken'], d.amy.elbows)}</select></div>
+    </div>
+    </div>
+    <button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('dressings')">+ Add Dressing</button>`;
+    d.dressings.forEach((r, i) => {
+      h += `<div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <b>Dressing ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('dressings', ${i})">X</button>
+        </div>
+        <div class="row">
+          <div><label>Location</label><input type="text" placeholder="e.g. Sacrum" value="${r.val||''}" oninput="updateField('${curBed}','dressings',${i},'val',this.value)"></div>
+        </div>
+        <div class="row" style="align-items:center;">
+          <div><label>Written Date</label><input type="date" value="${r.date||''}" onchange="updateField('${curBed}','dressings',${i},'date',this.value); renderContent()"></div>
+          <div style="flex:0 0 auto;"><button class="btn btn-sm" style="border:1px solid var(--border);" onclick="setNoDateArr(${i})">No Date</button></div>
+        </div>
+        <div style="font-size:0.85rem; color:var(--text-sub);">Next Due: <b>${calcDue(r.date)}</b></div>
+      </div>`;
+    });
+  }
+
+  if (curSec === 'food') {
+    const fOps = ['','100%','75%','50%','25%','0%','Refused','NBM'];
+    h += `<div class="card">
+      <div class="row"><div><label>Breakfast</label><select onchange="updateField('${curBed}','food',null,'b',this.value)">${opts(fOps, d.food.b)}</select></div></div>
+      <div class="row"><div><label>Lunch</label><select onchange="updateField('${curBed}','food',null,'l',this.value)">${opts(fOps, d.food.l)}</select></div></div>
+      <div class="row"><div><label>Dinner</label><select onchange="updateField('${curBed}','food',null,'d',this.value)">${opts(fOps, d.food.d)}</select></div></div>
+    </div>`;
+  }
+
+  if (curSec === 'turn') {
+    const tTimes = isNight ? ['20:00','22:00','00:00','02:00','04:00','06:00'] : ['08:00','10:00','12:00','14:00','16:00','18:00'];
+    h += `<div class="card">`;
+    tTimes.forEach((t, i) => {
+      h += `<div class="row" style="align-items:center; margin-bottom:8px;">
+        <span style="width:45px; font-weight:600; font-size:0.9rem;">${t}</span>
+        <select onchange="updateField('${curBed}','turn',${i},null,this.value)">${opts(['', 'Back', 'Left', 'Right', 'Chair', 'Walking', 'Refused'], d.turn[i])}</select>
+      </div>`;
+    });
+    h += `</div>`;
   }
 
   if (curSec === 'mh') {
-    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('mh')">+ Add MH Record</button>`;
+    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('mh')">+ Add MH Record</button>
+            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('mh')">Obs Info</button>
+          </div>`;
     d.mh.forEach((r, i) => {
       h += `<div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <b>MH Entry ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('mh', ${i})">X</button>
         </div>
         <div class="row">
-          <div><label>Time</label><select onchange="updateField('${curBed}','mh',${i},'time',this.value)">${generateTimeOpts(r.time)}</select></div>
+          <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','mh',${i},'time',this.value)"></div>
           <div><label>Obs Level</label><select onchange="updateField('${curBed}','mh',${i},'lvl',this.value)">${opts(['','General','15-min','30-min','1-to-1','2-to-1'], r.lvl)}</select></div>
         </div>
         <div class="row">
@@ -530,6 +641,17 @@ function renderContent() {
     });
   }
 
+  if (curSec === 'events') {
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('events')">+ Add Event</button>`;
+    d.events.forEach((r, i) => {
+      h += `<div class="card row" style="align-items:center;">
+        <input type="time" style="width:110px; flex:0 0 auto;" value="${r.time||''}" oninput="updateField('${curBed}','events',${i},'time',this.value)">
+        <input type="text" placeholder="Details" value="${r.val||''}" oninput="updateField('${curBed}','events',${i},'val',this.value)">
+        <button class="btn btn-danger btn-sm" style="flex:0 0 auto;" onclick="rmArr('events', ${i})">X</button>
+      </div>`;
+    });
+  }
+
   if (curSec === 'reminders') {
     h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('reminders')">+ Add Task</button>`;
     d.reminders.forEach((r, i) => {
@@ -539,7 +661,7 @@ function renderContent() {
           <b>Task ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('reminders', ${i})">X</button>
         </div>
         <div class="row">
-          <div><label>Time</label><select onchange="updateField('${curBed}','reminders',${i},'time',this.value); renderContent()">${generateTimeOpts(r.time)}</select></div>
+          <div><label>Due Time</label><select onchange="updateField('${curBed}','reminders',${i},'time',this.value); renderContent()">${generateTimeOpts(r.time)}</select></div>
           <div><label>Task</label><input type="text" placeholder="e.g. Bloods, ECG" value="${r.task||''}" oninput="updateField('${curBed}','reminders',${i},'task',this.value)"></div>
         </div>
         <div class="row">
@@ -549,30 +671,16 @@ function renderContent() {
     });
   }
 
-  if (curSec === 'bowel') {
-    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
-            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('bowel')">+ Add Bowel Record</button>
-            <button class="badge bg-info" style="padding:12px;" onclick="showInfo('bowel')">Chart</button>
-          </div>`;
-    d.bowel.forEach((r, i) => {
-      h += `<div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <b>Entry ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('bowel', ${i})">X</button>
-        </div>
-        <div class="row">
-          <div><label>Time</label><select onchange="updateField('${curBed}','bowel',${i},'time',this.value)">${generateTimeOpts(r.time)}</select></div>
-          <div><label>Amount</label><select onchange="updateField('${curBed}','bowel',${i},'amt',this.value)">${opts(['','Small','Medium','Large','Smear'], r.amt)}</select></div>
-        </div>
-        <div class="row">
-          <div><label>Bristol Type</label><select onchange="updateField('${curBed}','bowel',${i},'type',this.value)">${opts(['','Type 1','Type 2','Type 3','Type 4','Type 5','Type 6','Type 7','BNO'], r.type)}</select></div>
-        </div>
+  if (curSec === 'admit') {
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('admit')">+ Add Property Item</button>`;
+    d.admit.forEach((r, i) => {
+      h += `<div class="card row" style="align-items:center;">
+        <input type="text" placeholder="Item description (e.g. Dentures, Gold Ring)" value="${r.val||''}" oninput="updateField('${curBed}','admit',${i},'val',this.value)">
+        <button class="btn btn-danger btn-sm" style="flex:0 0 auto;" onclick="rmArr('admit', ${i})">X</button>
       </div>`;
     });
   }
 
-  if (['bp','fluid','amy','food','turn','events','admit'].includes(curSec)) {
-    h += `<p style="padding:20px; text-align:center; color:var(--text-sub);">Module structure retained as per previous version.</p>`;
-  }
   area.innerHTML = h;
 }
 
@@ -608,12 +716,52 @@ function calcN2(e) {
   return sc;
 }
 
+function refreshN2(idx) {
+  const r = db[curBed].obs[idx];
+  const sc = calcN2(r);
+  const bg = sc >= 7 ? 'bg-red' : (sc >= 5 ? 'bg-amber' : (sc > 0 ? 'bg-amber' : 'bg-green'));
+  const badge = document.getElementById(`n2-badge-${idx}`);
+  if (badge) { badge.className = `badge ${bg}`; badge.textContent = `Score: ${sc}`; }
+}
+
+function refreshBM(idx) {
+  const r = db[curBed].bm[idx];
+  const v = parseFloat(r.val);
+  let bg = 'bg-green', txt = 'Pending';
+  if(v) { bg = v<4?'bg-red':(v>11?'bg-red':'bg-green'); txt = v<4?'HYPO':(v>11?'HIGH':'TARGET'); }
+  const badge = document.getElementById(`bm-badge-${idx}`);
+  if (badge) { badge.className = `badge ${bg}`; badge.textContent = txt; }
+}
+
+function refreshBP() {
+  const d = db[curBed].bp;
+  const l = parseFloat(d.lsys)||0, s = parseFloat(d.ssys)||0, drop = l - s;
+  const bg = (!l||!s) ? 'bg-green' : (drop>=20 ? 'bg-red' : 'bg-green');
+  const txt = (!l||!s) ? 'Normal' : (drop>=20 ? `Drop (-${drop})` : `Normal (${drop})`);
+  const badge = document.getElementById(`bp-badge`);
+  if (badge) { badge.className = `badge ${bg}`; badge.textContent = txt; }
+}
+
+function refreshFluid() {
+  let inT=0, outT=0; db[curBed].fluid.forEach(f=>{ inT+=parseFloat(f.i)||0; outT+=parseFloat(f.o)||0; });
+  const el = document.getElementById('fluid-totals');
+  if (el) el.innerHTML = `<span>In: ${inT}</span><span>Out: ${outT}</span><span>Net: ${inT-outT}</span>`;
+}
+
 function showInfo(type) {
   const body = document.getElementById('infoBody');
   if (type === 'obs') {
-    body.innerHTML = `<img src="https://via.placeholder.com/600x800.png?text=NEWS2+Chart+Placeholder" alt="NEWS2 Parameters"><br><p style="font-size:0.9rem;">Upload your chart to a host and replace this placeholder link in the code.</p>`;
+    if (activeProfile === 'carehome') {
+      body.innerHTML = `<img src="restore2-soft-signs.png" style="width:100%; border-radius:8px; margin-bottom:12px;" alt="RESTORE2 Soft Signs"><img src="news2-chart.png" style="width:100%; border-radius:8px;" alt="NEWS2 Parameters">`;
+    } else {
+      body.innerHTML = `<img src="news2-chart.png" style="width:100%; border-radius:8px;" alt="NEWS2 Parameters">`;
+    }
+  } else if (type === 'bm') {
+    body.innerHTML = `<img src="glucose-targets.png" style="width:100%; border-radius:8px;" alt="Blood Glucose Targets">`;
   } else if (type === 'bowel') {
-    body.innerHTML = `<img src="https://via.placeholder.com/600x800.png?text=Bristol+Stool+Chart+Placeholder" alt="Bristol Stool Chart">`;
+    body.innerHTML = `<img src="bristol-stool.png" style="width:100%; border-radius:8px;" alt="Bristol Stool Chart">`;
+    } else if (type === 'mh') {
+    body.innerHTML = `<img src="mh-obs-levels.png" style="width:100%; border-radius:8px;" alt="Mental Health Observation Levels">`;
   }
   document.getElementById('infoModal').classList.remove('hidden');
 }
@@ -621,8 +769,7 @@ function showInfo(type) {
 function startAlertTimer() {
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   setInterval(() => {
-    const now = tNow();
-    let trigger = false;
+    const now = tNow(); let trigger = false;
     alloc.forEach(b => { if(db[b] && db[b].reminders) { db[b].reminders.forEach(r => { if(r.time && r.time <= now && !r.outcome) trigger = true; }); }});
     if(trigger) {
       if(navigator.vibrate) navigator.vibrate([300, 100, 300]);
@@ -639,8 +786,15 @@ function startAlertTimer() {
 
 function opts(arr, sel) { return arr.map(a => `<option value="${a}" ${a===sel?'selected':''}>${a}</option>`).join(''); }
 function tNow() { const d = new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
-function addArr(k) { db[curBed][k].push({time: '', val: ''}); saveDB(); renderContent(); }
+function addArr(k) { 
+  const defaultTime = k === 'reminders' ? '' : tNow();
+  db[curBed][k].push({time: defaultTime, val: ''}); 
+  saveDB(); 
+  renderContent(); 
+}
 function rmArr(k, i) { db[curBed][k].splice(i, 1); saveDB(); renderContent(); }
+function markSkinFine() { db[curBed].amy.sac = 'Fine'; db[curBed].amy.groin = 'Fine'; db[curBed].amy.heels = 'Fine'; db[curBed].amy.elbows = 'Fine'; saveDB(); renderContent(); }
+function setNoDateArr(i) { const d = new Date(); db[curBed].dressings[i].date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; saveDB(); renderContent(); }
 function calcDue(val) { if (!val) return '-'; const d = new Date(val); d.setDate(d.getDate() + 3); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; }
 function clearShift() { if (confirm("Clear all data and end shift?")) { localStorage.removeItem('cdu_alloc'); localStorage.removeItem('cdu_db'); localStorage.removeItem('cdu_start'); localStorage.removeItem('cdu_profile'); location.reload(); } }
 function handleSwipe() { if (showSummary || alloc.length <= 1) return; const diffX = touchEndX - touchStartX; const diffY = touchEndY - touchStartY; if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) { let idx = alloc.indexOf(curBed); idx += (diffX < 0) ? 1 : -1; if (idx >= alloc.length) idx = 0; if (idx < 0) idx = alloc.length - 1; setBed(alloc[idx]); } }
