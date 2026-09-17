@@ -309,6 +309,7 @@ function startShift(auto = false) {
     if(!db[b].reminders) db[b].reminders = [];
     if(!db[b].mh) db[b].mh = [];
     if(!db[b].mhLevel) db[b].mhLevel = '';
+    if(!db[b].transcribed) db[b].transcribed = {};
   });
   saveDB();
   
@@ -345,6 +346,19 @@ function renderUI() {
 function renderContent() {
   const area = document.getElementById('contentArea');
   if (showSummary) {
+    const buildSumSec = (bed, secId, title, content) => {
+      const isDone = db[bed].transcribed && db[bed].transcribed[secId];
+      const style = isDone ? 'opacity:0.4; filter:grayscale(100%);' : '';
+      const btnStyle = isDone ? 'background:var(--green);color:#fff;border:none;' : 'background:transparent;color:var(--text-sub);border:1px solid var(--border);';
+      return `<div class="summary-sec" style="transition:0.3s; ${style}">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+          <b>${title}</b>
+          <button onclick="toggleTranscribed('${bed}', '${secId}')" style="${btnStyle} padding:2px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">${isDone ? '✓ Transcribed' : 'Mark Done'}</button>
+        </div>
+        <div>${content}</div>
+      </div>`;
+    };
+
     let h = '';
     alloc.forEach(b => {
       const d = db[b];
@@ -362,7 +376,6 @@ function renderContent() {
           return (sc >= 5 || l.soft) ? `<b style="color:var(--red)">${txt}</b>` : txt;
         }).join('<br><br>');
       }
-      
       if (d.bm && d.bm.length > 0) {
         if (obsTxt) obsTxt += '<br><br>';
         obsTxt += d.bm.map(l => {
@@ -372,7 +385,7 @@ function renderContent() {
           return (v < 4 || v > 11) ? `<b style="color:var(--red)">${txt}</b>` : txt;
         }).join('<br>');
       }
-      if (obsTxt) sectionsHtml += `<div class="summary-sec"><b>Observations:</b><br>${obsTxt}</div>`;
+      if (obsTxt) sectionsHtml += buildSumSec(b, 'obs', 'Observations & Glucose', obsTxt);
       
       let iT=0, oT=0; 
       if(d.fluid) d.fluid.forEach(f=>{ iT+=parseFloat(f.i)||0; oT+=parseFloat(f.o)||0; });
@@ -380,7 +393,7 @@ function renderContent() {
       if (iT > 0 || oT > 0) {
         let ftxt = `In: ${iT}ml | Out: ${oT}ml | Net: ${net}ml`;
         if (net <= -500) { hasAlerts = true; ftxt = `<b style="color:var(--red)">${ftxt}</b>`; }
-        sectionsHtml += `<div class="summary-sec"><b>Fluid Balance:</b><br>${ftxt}</div>`;
+        sectionsHtml += buildSumSec(b, 'fluid', 'Fluid Balance', ftxt);
       }
       
       let dietParts = [];
@@ -391,10 +404,8 @@ function renderContent() {
       let bowelTxt = '';
       if (d.bowel && d.bowel.length > 0) bowelTxt = d.bowel.map(r => `${r.time||'--:--'} - ${r.amt||'-'} (${r.type||'-'})`).join('<br>');
       if (dietTxt || bowelTxt) {
-        let dHtml = '';
-        if (dietTxt) dHtml += `${dietTxt}<br>`;
-        if (bowelTxt) dHtml += `Bowels:<br>${bowelTxt}`;
-        sectionsHtml += `<div class="summary-sec"><b>Diet & Bowels:</b><br>${dHtml}</div>`;
+        let dHtml = [dietTxt, bowelTxt ? `Bowels:<br>${bowelTxt}` : ''].filter(Boolean).join('<br>');
+        sectionsHtml += buildSumSec(b, 'diet', 'Diet & Bowels', dHtml);
       }
       
       let skinParts = [];
@@ -411,7 +422,7 @@ function renderContent() {
       let skintxt = '';
       if (d.dressings && d.dressings.length > 0) skintxt = `Dressings:<br>` + d.dressings.map(dr => `${dr.val || 'Unnamed'} (Due: <b>${calcDue(dr.date)}</b>)`).join('<br>');
       let skinGroup = [skinSummary, turnDetails, skintxt].filter(Boolean).join('<br><br>');
-      if (skinGroup) sectionsHtml += `<div class="summary-sec"><b>Skin & Repositioning:</b><br>${skinGroup}</div>`;
+      if (skinGroup) sectionsHtml += buildSumSec(b, 'skin', 'Skin & Repositioning', skinGroup);
 
       if ((d.mh && d.mh.length > 0) || d.mhLevel) {
         let mhTxt = '';
@@ -419,12 +430,12 @@ function renderContent() {
         if (d.mh && d.mh.length > 0) {
           mhTxt += d.mh.map(r => `<b>${r.time||'--:--'}</b> - Mood: ${r.mood||'-'} | Sleep: ${r.sleep||'-'}<br>Risks: ${r.risks||'None'}<br>Notes: ${r.note||'-'}`).join('<br><br>');
         }
-        sectionsHtml += `<div class="summary-sec"><b>Mental Health:</b><br>${mhTxt}</div>`;
+        sectionsHtml += buildSumSec(b, 'mh', 'Mental Health', mhTxt);
       }
 
       if (d.events && d.events.length > 0) {
         let eventTxt = d.events.map(r => `${r.time||'--:--'} - ${r.val||''}`).join('<br>');
-        sectionsHtml += `<div class="summary-sec"><b>Narrative Notes:</b><br>${eventTxt}</div>`;
+        sectionsHtml += buildSumSec(b, 'events', 'Narrative Notes', eventTxt);
       }
 
       if (d.reminders && d.reminders.length > 0) {
@@ -432,12 +443,12 @@ function renderContent() {
            let rstr = `<b>${r.time||'--:--'} - ${r.task||'Unnamed Task'}:</b> ${r.outcome||'Pending'}`;
            return (!r.outcome && r.time <= tNow()) ? `<span style="color:var(--red)">${rstr}</span>` : rstr;
         }).join('<br>');
-        sectionsHtml += `<div class="summary-sec"><b>Tasks / Reminders:</b><br>${remTxt}</div>`;
+        sectionsHtml += buildSumSec(b, 'reminders', 'Tasks / Reminders', remTxt);
       }
       
       if (d.admit && d.admit.length > 0) {
         let admitTxt = d.admit.map(r => `- ${r.val||''}`).join('<br>');
-        sectionsHtml += `<div class="summary-sec"><b>Admissions Property:</b><br>${admitTxt}</div>`;
+        sectionsHtml += buildSumSec(b, 'admit', 'Admissions Property', admitTxt);
       }
 
       h += `<div class="card" ${hasAlerts ? 'style="border-left:4px solid var(--red);"' : 'style="border-left:4px solid var(--green);"'} >
@@ -447,7 +458,7 @@ function renderContent() {
     });
     area.innerHTML = h || '<p style="text-align:center; padding:20px; color:var(--text-sub);">No active patients.</p>';
     return;
-          }
+  }
     if (!db[curBed]) return;
   const d = db[curBed];
   let h = '';
@@ -608,7 +619,7 @@ function renderContent() {
       </div>`;
     });
     h += `</div>`;
-            }
+      }
     if (curSec === 'mh') {
     h += `<div class="card" style="border: 2px solid var(--teal);">
             <label style="color:var(--teal); font-size:0.95rem;">Current Observation Level</label>
@@ -783,6 +794,13 @@ function startAlertTimer() {
       if(curSec === 'reminders') renderContent();
     }
   }, 60000);
+}
+
+function toggleTranscribed(bed, sec) {
+  if (!db[bed].transcribed) db[bed].transcribed = {};
+  db[bed].transcribed[sec] = !db[bed].transcribed[sec];
+  saveDB();
+  renderContent();
 }
 
 function opts(arr, sel) { return arr.map(a => `<option value="${a}" ${a===sel?'selected':''}>${a}</option>`).join(''); }
