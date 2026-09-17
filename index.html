@@ -376,16 +376,30 @@ function renderContent() {
           return (sc >= 5 || l.soft) ? `<b style="color:var(--red)">${txt}</b>` : txt;
         }).join('<br><br>');
       }
+      if (obsTxt) sectionsHtml += buildSumSec(b, 'obs', 'Observations', obsTxt);
+
+      let bmTxt = '';
       if (d.bm && d.bm.length > 0) {
-        if (obsTxt) obsTxt += '<br><br>';
-        obsTxt += d.bm.map(l => {
+        bmTxt += d.bm.map(l => {
           const v = parseFloat(l.val);
           if (v < 4 || v > 11) hasAlerts = true;
           let txt = `${l.time||'--:--'} - Glucose: ${l.val||'-'} mmol/L (${l.meal||'Unspecified'})`;
           return (v < 4 || v > 11) ? `<b style="color:var(--red)">${txt}</b>` : txt;
         }).join('<br>');
       }
-      if (obsTxt) sectionsHtml += buildSumSec(b, 'obs', 'Observations & Glucose', obsTxt);
+      if (bmTxt) sectionsHtml += buildSumSec(b, 'bm', 'Blood Glucose', bmTxt);
+
+      let bpTxt = '';
+      if (d.bp && (d.bp.lsys || d.bp.ldia || d.bp.ssys || d.bp.sdia)) {
+        const lsys = parseFloat(d.bp.lsys)||0, ssys = parseFloat(d.bp.ssys)||0;
+        bpTxt += `Lying: ${d.bp.lsys||'-'}/${d.bp.ldia||'-'} | Standing: ${d.bp.ssys||'-'}/${d.bp.sdia||'-'}`;
+        if (lsys && ssys) {
+          const drop = lsys - ssys;
+          bpTxt += `<br>Drop: ${drop >= 20 ? `<b style="color:var(--red)">-${drop}</b>` : `-${drop}`}`;
+          if (drop >= 20) hasAlerts = true;
+        }
+        sectionsHtml += buildSumSec(b, 'bp', 'L/S Blood Pressure', bpTxt);
+      }
       
       let iT=0, oT=0; 
       if(d.fluid) d.fluid.forEach(f=>{ iT+=parseFloat(f.i)||0; oT+=parseFloat(f.o)||0; });
@@ -401,12 +415,11 @@ function renderContent() {
       if (d.food && d.food.l) dietParts.push(`Lunch: ${d.food.l}`);
       if (d.food && d.food.d) dietParts.push(`Dinner: ${d.food.d}`);
       let dietTxt = dietParts.join(' | ');
+      if (dietTxt) sectionsHtml += buildSumSec(b, 'food', 'Diet', dietTxt);
+
       let bowelTxt = '';
       if (d.bowel && d.bowel.length > 0) bowelTxt = d.bowel.map(r => `${r.time||'--:--'} - ${r.amt||'-'} (${r.type||'-'})`).join('<br>');
-      if (dietTxt || bowelTxt) {
-        let dHtml = [dietTxt, bowelTxt ? `Bowels:<br>${bowelTxt}` : ''].filter(Boolean).join('<br>');
-        sectionsHtml += buildSumSec(b, 'diet', 'Diet & Bowels', dHtml);
-      }
+      if (bowelTxt) sectionsHtml += buildSumSec(b, 'bowel', 'Bowels', bowelTxt);
       
       let skinParts = [];
       if (d.amy && d.amy.sac) skinParts.push(`Sacrum (${d.amy.sac})`);
@@ -414,15 +427,15 @@ function renderContent() {
       if (d.amy && d.amy.heels) skinParts.push(`Heels (${d.amy.heels})`);
       if (d.amy && d.amy.elbows) skinParts.push(`Elbows (${d.amy.elbows})`);
       let skinSummary = skinParts.length > 0 ? `Checks: ${skinParts.join(', ')}` : '';
+      let skintxt = '';
+      if (d.dressings && d.dressings.length > 0) skintxt = `Dressings:<br>` + d.dressings.map(dr => `${dr.val || 'Unnamed'} (Due: <b>${calcDue(dr.date)}</b>)`).join('<br>');
+      let combinedSkin = [skinSummary, skintxt].filter(Boolean).join('<br><br>');
+      if (combinedSkin) sectionsHtml += buildSumSec(b, 'amy', 'Skin & Dressings', combinedSkin);
       
       const tTimes = isNight ? ['20:00','22:00','00:00','02:00','04:00','06:00'] : ['08:00','10:00','12:00','14:00','16:00','18:00'];
       let turnDetails = '';
       if(d.turn) turnDetails = d.turn.map((t, i) => t !== '' ? `${tTimes[i]} - ${t}` : null).filter(Boolean).join('<br>');
-      if (turnDetails) turnDetails = `Turns:<br>${turnDetails}`;
-      let skintxt = '';
-      if (d.dressings && d.dressings.length > 0) skintxt = `Dressings:<br>` + d.dressings.map(dr => `${dr.val || 'Unnamed'} (Due: <b>${calcDue(dr.date)}</b>)`).join('<br>');
-      let skinGroup = [skinSummary, turnDetails, skintxt].filter(Boolean).join('<br><br>');
-      if (skinGroup) sectionsHtml += buildSumSec(b, 'skin', 'Skin & Repositioning', skinGroup);
+      if (turnDetails) sectionsHtml += buildSumSec(b, 'turn', 'Turning', turnDetails);
 
       if ((d.mh && d.mh.length > 0) || d.mhLevel) {
         let mhTxt = '';
@@ -619,7 +632,7 @@ function renderContent() {
       </div>`;
     });
     h += `</div>`;
-      }
+  }
     if (curSec === 'mh') {
     h += `<div class="card" style="border: 2px solid var(--teal);">
             <label style="color:var(--teal); font-size:0.95rem;">Current Observation Level</label>
