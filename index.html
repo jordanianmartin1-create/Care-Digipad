@@ -210,11 +210,16 @@ function generateTimeOpts(sel) {
 function initSetup() {
   document.getElementById('shiftProfile').value = activeProfile;
   updateLayoutDropdown();
-  if(Object.keys(savedLayouts).length > 0) {
-    loadLayout(Object.keys(savedLayouts)[0]);
+  
+  if (localStorage.getItem('cdu_alloc')) {
+    renderSetupGrid();
+    startShift(true);
+  } else {
+    if(Object.keys(savedLayouts).length > 0) {
+      loadLayout(Object.keys(savedLayouts)[0]);
+    }
+    renderSetupGrid();
   }
-  renderSetupGrid();
-  if (alloc.length > 0) startShift(true);
 }
 
 function updateLayoutDropdown() {
