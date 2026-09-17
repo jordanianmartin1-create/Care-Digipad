@@ -309,7 +309,7 @@ function startShift(auto = false) {
     if(!db[b].reminders) db[b].reminders = [];
     if(!db[b].mh) db[b].mh = [];
     if(!db[b].mhLevel) db[b].mhLevel = '';
-    if(!db[b].transcribed) db[b].transcribed = {};
+    if(!db[b].td) db[b].td = {};
   });
   saveDB();
   
@@ -332,11 +332,28 @@ function getActiveSections() {
   return s;
 }
 
+function tRow(b, s, i) { db[b].td[`${s}_${i}`] = !db[b].td[`${s}_${i}`]; saveDB(); renderContent(); }
+function tFlat(b, s) { db[b].td[s] = !db[b].td[s]; saveDB(); renderContent(); }
+function tFluid(b) { db[b].fluid.forEach((f,i)=>{ if(f.i||f.o) db[b].td[`fl_${i}`]=true; }); saveDB(); renderContent(); }
+
+function rowUI(txt, b, s, i) {
+  const done = db[b].td[`${s}_${i}`];
+  const style = done ? 'opacity:0.4; filter:grayscale(100%);' : '';
+  const btn = `<button onclick="tRow('${b}','${s}',${i})" style="margin-left:8px; padding:2px 6px; font-size:0.75rem; border-radius:4px; cursor:pointer; flex:0 0 auto; ${done?'background:var(--green);color:#fff;border:none;':'background:transparent;color:var(--text-sub);border:1px solid var(--border);'}">${done?'✓':'Mark Done'}</button>`;
+  return `<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border); transition:0.3s; ${style}"><div style="flex:1;">${txt}</div>${btn}</div>`;
+}
+
+function flatUI(txt, b, s) {
+  const done = db[b].td[s];
+  const style = done ? 'opacity:0.4; filter:grayscale(100%);' : '';
+  const btn = `<button onclick="tFlat('${b}','${s}')" style="margin-left:8px; padding:2px 6px; font-size:0.75rem; border-radius:4px; cursor:pointer; flex:0 0 auto; ${done?'background:var(--green);color:#fff;border:none;':'background:transparent;color:var(--text-sub);border:1px solid var(--border);'}">${done?'✓':'Mark Done'}</button>`;
+  return `<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border); transition:0.3s; ${style}"><div style="flex:1;">${txt}</div>${btn}</div>`;
+}
+
 function renderUI() {
   let tabsHtml = `<button class="tab-btn ${showSummary ? 'active-summary' : ''}" onclick="toggleSummary()">Handover Summary</button>`;
   tabsHtml += alloc.map(b => `<button class="tab-btn ${b===curBed && !showSummary ?'active-bed':''}" onclick="setBed('${b}')">${b}</button>`).join('');
   document.getElementById('bedTabs').innerHTML = tabsHtml;
-  
   const secOpts = getActiveSections();
   if(!secOpts.find(x => x.id === curSec)) curSec = secOpts[0].id;
   document.getElementById('subNav').innerHTML = showSummary ? '' : secOpts.map(s => `<button class="tab-btn ${s.id===curSec?'active-sec':''}" onclick="setSec('${s.id}')">${s.lbl}</button>`).join('');
@@ -346,122 +363,109 @@ function renderUI() {
 function renderContent() {
   const area = document.getElementById('contentArea');
   if (showSummary) {
-    const buildSumSec = (bed, secId, title, content) => {
-      const isDone = db[bed].transcribed && db[bed].transcribed[secId];
-      const style = isDone ? 'opacity:0.4; filter:grayscale(100%);' : '';
-      const btnStyle = isDone ? 'background:var(--green);color:#fff;border:none;' : 'background:transparent;color:var(--text-sub);border:1px solid var(--border);';
-      return `<div class="summary-sec" style="transition:0.3s; ${style}">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
-          <b>${title}</b>
-          <button onclick="toggleTranscribed('${bed}', '${secId}')" style="${btnStyle} padding:2px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">${isDone ? '✓ Transcribed' : 'Mark Done'}</button>
-        </div>
-        <div>${content}</div>
-      </div>`;
-    };
-
     let h = '';
     alloc.forEach(b => {
       const d = db[b];
       if (!d) return;
+      if (!d.td) d.td = {};
       let hasAlerts = false; let sectionsHtml = '';
       
-      let obsTxt = '';
       if (d.obs && d.obs.length > 0) {
-        obsTxt += d.obs.map(l => {
-          const sc = calcN2(l);
-          if (sc >= 5 || l.soft) hasAlerts = true;
-          let framework = activeProfile === 'carehome' ? 'RESTORE2' : 'NEWS2';
-          let txt = `${l.time||'--:--'} - ${framework} Score ${sc} (RR ${l.rr||'-'}, SpO2 ${l.spo2||'-'}%, ${l.o2||'Air'}, BP ${l.sys||'-'}/${l.dia||'-'}, HR ${l.hr||'-'}, ${l.acvpu||'Alert'}, Temp ${l.t||'-'}°C)`;
+        sectionsHtml += `<div class="summary-sec"><b>Observations:</b><br>` + d.obs.map((l,i) => {
+          const sc = calcN2(l); if (sc >= 5 || l.soft) hasAlerts = true;
+          let fw = activeProfile === 'carehome' ? 'RESTORE2' : 'NEWS2';
+          let txt = `${l.time||'--:--'} - ${fw} Score ${sc} (RR ${l.rr||'-'}, SpO2 ${l.spo2||'-'}%, ${l.o2||'Air'}, BP ${l.sys||'-'}/${l.dia||'-'}, HR ${l.hr||'-'}, ${l.acvpu||'Alert'}, Temp ${l.t||'-'}°C)`;
           if(l.soft) txt += `<br><i style="color:var(--red)">Soft Signs: ${l.soft}</i>`;
-          return (sc >= 5 || l.soft) ? `<b style="color:var(--red)">${txt}</b>` : txt;
-        }).join('<br><br>');
-      }
-      if (obsTxt) sectionsHtml += buildSumSec(b, 'obs', 'Observations', obsTxt);
-
-      let bmTxt = '';
-      if (d.bm && d.bm.length > 0) {
-        bmTxt += d.bm.map(l => {
-          const v = parseFloat(l.val);
-          if (v < 4 || v > 11) hasAlerts = true;
-          let txt = `${l.time||'--:--'} - Glucose: ${l.val||'-'} mmol/L (${l.meal||'Unspecified'})`;
-          return (v < 4 || v > 11) ? `<b style="color:var(--red)">${txt}</b>` : txt;
-        }).join('<br>');
-      }
-      if (bmTxt) sectionsHtml += buildSumSec(b, 'bm', 'Blood Glucose', bmTxt);
-
-      let bpTxt = '';
-      if (d.bp && (d.bp.lsys || d.bp.ldia || d.bp.ssys || d.bp.sdia)) {
-        const lsys = parseFloat(d.bp.lsys)||0, ssys = parseFloat(d.bp.ssys)||0;
-        bpTxt += `Lying: ${d.bp.lsys||'-'}/${d.bp.ldia||'-'} | Standing: ${d.bp.ssys||'-'}/${d.bp.sdia||'-'}`;
-        if (lsys && ssys) {
-          const drop = lsys - ssys;
-          bpTxt += `<br>Drop: ${drop >= 20 ? `<b style="color:var(--red)">-${drop}</b>` : `-${drop}`}`;
-          if (drop >= 20) hasAlerts = true;
-        }
-        sectionsHtml += buildSumSec(b, 'bp', 'L/S Blood Pressure', bpTxt);
+          if(sc>=5 || l.soft) txt = `<b style="color:var(--red)">${txt}</b>`;
+          return rowUI(txt, b, 'obs', i);
+        }).join('') + `</div>`;
       }
       
-      let iT=0, oT=0; 
-      if(d.fluid) d.fluid.forEach(f=>{ iT+=parseFloat(f.i)||0; oT+=parseFloat(f.o)||0; });
-      const net = iT-oT;
-      if (iT > 0 || oT > 0) {
-        let ftxt = `In: ${iT}ml | Out: ${oT}ml | Net: ${net}ml`;
-        if (net <= -500) { hasAlerts = true; ftxt = `<b style="color:var(--red)">${ftxt}</b>`; }
-        sectionsHtml += buildSumSec(b, 'fluid', 'Fluid Balance', ftxt);
+      if (d.bm && d.bm.length > 0) {
+        sectionsHtml += `<div class="summary-sec"><b>Blood Glucose:</b><br>` + d.bm.map((l,i) => {
+          const v = parseFloat(l.val); if (v < 4 || v > 11) hasAlerts = true;
+          let txt = `${l.time||'--:--'} - Glucose: ${l.val||'-'} mmol/L (${l.meal||'Unspecified'})`;
+          if (v < 4 || v > 11) txt = `<b style="color:var(--red)">${txt}</b>`;
+          return rowUI(txt, b, 'bm', i);
+        }).join('') + `</div>`;
+      }
+
+      if (d.bp && (d.bp.lsys || d.bp.ldia || d.bp.ssys || d.bp.sdia)) {
+        const lsys = parseFloat(d.bp.lsys)||0, ssys = parseFloat(d.bp.ssys)||0;
+        let txt = `Lying: ${d.bp.lsys||'-'}/${d.bp.ldia||'-'} | Standing: ${d.bp.ssys||'-'}/${d.bp.sdia||'-'}`;
+        if (lsys && ssys) {
+          const drop = lsys - ssys;
+          txt += `<br>Drop: ${drop >= 20 ? `<b style="color:var(--red)">-${drop}</b>` : `-${drop}`}`;
+          if (drop >= 20) hasAlerts = true;
+        }
+        sectionsHtml += `<div class="summary-sec"><b>L/S Blood Pressure:</b><br>` + flatUI(txt, b, 'bp') + `</div>`;
+      }
+      
+      let pIn=0, pOut=0, tIn=0, tOut=0;
+      if (d.fluid) {
+        d.fluid.forEach((f, i) => {
+          let In = parseFloat(f.i)||0; let Out = parseFloat(f.o)||0;
+          if(d.td[`fl_${i}`]) { tIn+=In; tOut+=Out; } else { pIn+=In; pOut+=Out; }
+        });
+      }
+      let fHtml = '';
+      if(tIn||tOut) fHtml += `<div style="opacity:0.5; margin-bottom:8px;"><b>Transcribed:</b> In ${tIn}ml | Out ${tOut}ml | Net ${tIn-tOut}ml</div>`;
+      if(pIn||pOut) fHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border);"><span><b>Pending:</b> In ${pIn}ml | Out ${pOut}ml | Net ${pIn-pOut}ml</span> <button onclick="tFluid('${b}')" style="padding:2px 6px; font-size:0.75rem; border-radius:4px; cursor:pointer; background:transparent; border:1px solid var(--border);">Mark Done</button></div>`;
+      if(tIn||tOut||pIn||pOut) {
+        fHtml += `<div style="font-weight:bold;">Shift Total: In ${tIn+pIn}ml | Out ${tOut+pOut}ml | Net ${(tIn+pIn)-(tOut+pOut)}ml</div>`;
+        sectionsHtml += `<div class="summary-sec"><b>Fluid Balance:</b><br>${fHtml}</div>`;
       }
       
       let dietParts = [];
       if (d.food && d.food.b) dietParts.push(`Breakfast: ${d.food.b}`);
       if (d.food && d.food.l) dietParts.push(`Lunch: ${d.food.l}`);
       if (d.food && d.food.d) dietParts.push(`Dinner: ${d.food.d}`);
-      let dietTxt = dietParts.join(' | ');
-      if (dietTxt) sectionsHtml += buildSumSec(b, 'food', 'Diet', dietTxt);
+      if (dietParts.length > 0) sectionsHtml += `<div class="summary-sec"><b>Diet:</b><br>` + flatUI(dietParts.join(' | '), b, 'food') + `</div>`;
 
-      let bowelTxt = '';
-      if (d.bowel && d.bowel.length > 0) bowelTxt = d.bowel.map(r => `${r.time||'--:--'} - ${r.amt||'-'} (${r.type||'-'})`).join('<br>');
-      if (bowelTxt) sectionsHtml += buildSumSec(b, 'bowel', 'Bowels', bowelTxt);
+      if (d.bowel && d.bowel.length > 0) {
+        sectionsHtml += `<div class="summary-sec"><b>Bowels:</b><br>` + d.bowel.map((r,i) => rowUI(`${r.time||'--:--'} - ${r.amt||'-'} (${r.type||'-'})`, b, 'bowel', i)).join('') + `</div>`;
+      }
       
-      let skinParts = [];
-      if (d.amy && d.amy.sac) skinParts.push(`Sacrum (${d.amy.sac})`);
-      if (d.amy && d.amy.groin) skinParts.push(`Groin (${d.amy.groin})`);
-      if (d.amy && d.amy.heels) skinParts.push(`Heels (${d.amy.heels})`);
-      if (d.amy && d.amy.elbows) skinParts.push(`Elbows (${d.amy.elbows})`);
-      let skinSummary = skinParts.length > 0 ? `Checks: ${skinParts.join(', ')}` : '';
-      let skintxt = '';
-      if (d.dressings && d.dressings.length > 0) skintxt = `Dressings:<br>` + d.dressings.map(dr => `${dr.val || 'Unnamed'} (Due: <b>${calcDue(dr.date)}</b>)`).join('<br>');
-      let combinedSkin = [skinSummary, skintxt].filter(Boolean).join('<br><br>');
-      if (combinedSkin) sectionsHtml += buildSumSec(b, 'amy', 'Skin & Dressings', combinedSkin);
+      let skinP = [];
+      if (d.amy && d.amy.sac) skinP.push(`Sacrum (${d.amy.sac})`);
+      if (d.amy && d.amy.groin) skinP.push(`Groin (${d.amy.groin})`);
+      if (d.amy && d.amy.heels) skinP.push(`Heels (${d.amy.heels})`);
+      if (d.amy && d.amy.elbows) skinP.push(`Elbows (${d.amy.elbows})`);
+      if (skinP.length > 0) sectionsHtml += `<div class="summary-sec"><b>Skin Checks:</b><br>` + flatUI(skinP.join(', '), b, 'amy') + `</div>`;
       
+      if (d.dressings && d.dressings.length > 0) {
+        sectionsHtml += `<div class="summary-sec"><b>Dressings:</b><br>` + d.dressings.map((dr,i) => rowUI(`${dr.val || 'Unnamed'} (Due: <b>${calcDue(dr.date)}</b>)`, b, 'dressings', i)).join('') + `</div>`;
+      }
+
       const tTimes = isNight ? ['20:00','22:00','00:00','02:00','04:00','06:00'] : ['08:00','10:00','12:00','14:00','16:00','18:00'];
-      let turnDetails = '';
-      if(d.turn) turnDetails = d.turn.map((t, i) => t !== '' ? `${tTimes[i]} - ${t}` : null).filter(Boolean).join('<br>');
-      if (turnDetails) sectionsHtml += buildSumSec(b, 'turn', 'Turning', turnDetails);
+      let hasTurn = d.turn && d.turn.some(t => t !== '');
+      if (hasTurn) {
+        sectionsHtml += `<div class="summary-sec"><b>Turning:</b><br>` + d.turn.map((t,i) => t !== '' ? rowUI(`${tTimes[i]} - ${t}`, b, 'turn', i) : '').join('') + `</div>`;
+      }
 
-      if ((d.mh && d.mh.length > 0) || d.mhLevel) {
-        let mhTxt = '';
-        if (d.mhLevel) mhTxt += `<b style="color:var(--teal)">Current Level: ${d.mhLevel}</b><br><br>`;
-        if (d.mh && d.mh.length > 0) {
-          mhTxt += d.mh.map(r => `<b>${r.time||'--:--'}</b> - Mood: ${r.mood||'-'} | Sleep: ${r.sleep||'-'}<br>Risks: ${r.risks||'None'}<br>Notes: ${r.note||'-'}`).join('<br><br>');
-        }
-        sectionsHtml += buildSumSec(b, 'mh', 'Mental Health', mhTxt);
+      if (d.mhLevel || (d.mh && d.mh.length > 0)) {
+         sectionsHtml += `<div class="summary-sec"><b>Mental Health:</b><br>`;
+         if(d.mhLevel) sectionsHtml += flatUI(`<b style="color:var(--teal)">Current Level: ${d.mhLevel}</b>`, b, 'mhLevel');
+         if(d.mh && d.mh.length > 0) {
+           sectionsHtml += d.mh.map((r,i) => rowUI(`<b>${r.time||'--:--'}</b> - Mood: ${r.mood||'-'} | Sleep: ${r.sleep||'-'}<br>Risks: ${r.risks||'None'}<br>Notes: ${r.note||'-'}`, b, 'mh', i)).join('');
+         }
+         sectionsHtml += `</div>`;
       }
 
       if (d.events && d.events.length > 0) {
-        let eventTxt = d.events.map(r => `${r.time||'--:--'} - ${r.val||''}`).join('<br>');
-        sectionsHtml += buildSumSec(b, 'events', 'Narrative Notes', eventTxt);
+        sectionsHtml += `<div class="summary-sec"><b>Narrative Notes:</b><br>` + d.events.map((r,i) => rowUI(`${r.time||'--:--'} - ${r.val||''}`, b, 'events', i)).join('') + `</div>`;
       }
 
       if (d.reminders && d.reminders.length > 0) {
-        let remTxt = d.reminders.map(r => {
-           let rstr = `<b>${r.time||'--:--'} - ${r.task||'Unnamed Task'}:</b> ${r.outcome||'Pending'}`;
-           return (!r.outcome && r.time <= tNow()) ? `<span style="color:var(--red)">${rstr}</span>` : rstr;
-        }).join('<br>');
-        sectionsHtml += buildSumSec(b, 'reminders', 'Tasks / Reminders', remTxt);
+        sectionsHtml += `<div class="summary-sec"><b>Tasks / Reminders:</b><br>` + d.reminders.map((r,i) => {
+          let txt = `<b>${r.time||'--:--'} - ${r.task||'Unnamed Task'}:</b> ${r.outcome||'Pending'}`;
+          if (!r.outcome && r.time <= tNow()) txt = `<span style="color:var(--red)">${txt}</span>`;
+          return rowUI(txt, b, 'reminders', i);
+        }).join('') + `</div>`;
       }
       
       if (d.admit && d.admit.length > 0) {
-        let admitTxt = d.admit.map(r => `- ${r.val||''}`).join('<br>');
-        sectionsHtml += buildSumSec(b, 'admit', 'Admissions Property', admitTxt);
+        sectionsHtml += `<div class="summary-sec"><b>Admissions Property:</b><br>` + d.admit.map((r,i) => rowUI(`- ${r.val||''}`, b, 'admit', i)).join('') + `</div>`;
       }
 
       h += `<div class="card" ${hasAlerts ? 'style="border-left:4px solid var(--red);"' : 'style="border-left:4px solid var(--green);"'} >
@@ -807,13 +811,6 @@ function startAlertTimer() {
       if(curSec === 'reminders') renderContent();
     }
   }, 60000);
-}
-
-function toggleTranscribed(bed, sec) {
-  if (!db[bed].transcribed) db[bed].transcribed = {};
-  db[bed].transcribed[sec] = !db[bed].transcribed[sec];
-  saveDB();
-  renderContent();
 }
 
 function opts(arr, sel) { return arr.map(a => `<option value="${a}" ${a===sel?'selected':''}>${a}</option>`).join(''); }
