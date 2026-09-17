@@ -101,8 +101,11 @@
 </div>
 
 <div id="setupView" class="setup-container">
-  <h2 style="margin-bottom:4px;">Shift Setup & Ward Builder</h2>
-  <p style="font-size:0.9rem; color:var(--text-sub); margin-bottom:16px;">Configure your shift profile and select your layout.</p>
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+    <h2 style="margin:0;">Shift Setup</h2>
+    <button class="badge bg-info" style="padding:8px 12px; font-size:0.9rem;" onclick="showInfo('guide')">? Guide</button>
+  </div>
+  <p style="font-size:0.9rem; color:var(--text-sub); margin-bottom:16px;">Configure your shift profile and layout.</p>
   
   <div style="margin-bottom: 20px;">
     <label>Shift Profile</label>
@@ -114,27 +117,27 @@
   </div>
 
   <div style="margin-bottom: 20px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px;">
-    <label>Saved Ward Layouts</label>
-    <div style="display:flex; gap:8px; margin-bottom:12px;">
+    <label>Load Saved Layout</label>
+    <div style="display:flex; gap:8px;">
       <select id="savedLayoutsDropdown" style="flex:1;" onchange="loadLayout(this.value)"></select>
       <button class="btn btn-danger" style="margin-top:0; width:auto; padding:0 15px;" onclick="deleteLayout()">Del</button>
-    </div>
-    
-    <div style="border-top:1px dashed var(--border); padding-top:12px; margin-top:12px;">
-      <label>Create / Save Layout As</label>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="layoutNameInput" placeholder="e.g. Bay 1" style="flex:1;">
-        <button class="btn btn-primary" style="margin-top:0; width:auto; padding:0 15px;" onclick="saveLayout()">Save</button>
-      </div>
     </div>
   </div>
 
   <div style="margin-bottom: 20px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px;">
-    <label>Add Bed / Patient</label>
-    <p style="font-size:0.8rem; font-weight:bold; color:var(--red); margin-bottom:8px;">Patient Confidentiality: Do not enter identifiable patient names. Use initials or bed numbers only.</p>
+    <label>1. Add Bed / Patient</label>
+    <p style="font-size:0.8rem; font-weight:bold; color:var(--red); margin-bottom:8px;">Confidentiality: Use initials or bed numbers only.</p>
     <div style="display:flex; gap:8px;">
       <input type="text" id="newBedInput" placeholder="e.g. Bed 4, JM" style="flex:1;">
       <button class="btn btn-primary" style="margin-top:0; width:auto; padding:0 20px;" onclick="addNewBed()">Add</button>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 20px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px;">
+    <label>2. Save Layout As (Optional)</label>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="layoutNameInput" placeholder="e.g. Bay 1" style="flex:1;">
+      <button class="btn btn-primary" style="margin-top:0; width:auto; padding:0 15px;" onclick="saveLayout()">Save</button>
     </div>
   </div>
 
@@ -176,8 +179,19 @@ let curSec = 'obs';
 let isNight = false;
 
 let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
-document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; }, {passive: true});
-document.addEventListener('touchend', e => { touchEndX = e.changedTouches[0].screenX; touchEndY = e.changedTouches[0].screenY; handleSwipe(); }, {passive: true});
+let isSwipeAllowed = true;
+
+document.addEventListener('touchstart', e => { 
+  touchStartX = e.changedTouches[0].screenX; 
+  touchStartY = e.changedTouches[0].screenY; 
+  isSwipeAllowed = !e.target.closest('.scroll-row') && !e.target.closest('input, select, textarea');
+}, {passive: true});
+
+document.addEventListener('touchend', e => { 
+  touchEndX = e.changedTouches[0].screenX; 
+  touchEndY = e.changedTouches[0].screenY; 
+  if(isSwipeAllowed) handleSwipe(); 
+}, {passive: true});
 
 try {
   const sLayouts = localStorage.getItem('cdu_layouts');
@@ -316,6 +330,7 @@ function startShift(auto = false) {
     if(!db[b].fluid) db[b].fluid = Array(13).fill(null).map(()=>({i:'', o:''}));
     if(!db[b].reminders) db[b].reminders = [];
     if(!db[b].mh) db[b].mh = [];
+    if(!db[b].mhLevel) db[b].mhLevel = '';
   });
   saveDB();
   
@@ -334,7 +349,7 @@ function editBeds() { document.getElementById('mainView').classList.add('hidden'
 
 function getActiveSections() {
   let s = [ {id:'obs', lbl:'Observations'}, {id:'bm', lbl:'Glucose'}, {id:'bp', lbl:'L/S BP'}, {id:'fluid', lbl:'Fluids'}, {id:'bowel', lbl:'Bowels'}, {id:'amy', lbl:'Skin'}, {id:'food', lbl:'Food'}, {id:'turn', lbl:'Turning'}, {id:'events', lbl:'Events'}, {id:'admit', lbl:'Admissions'}, {id:'reminders', lbl:'Tasks'} ];
-  if (activeProfile === 'mental') s.splice(8, 0, {id:'mh', lbl:'Mental Health'});
+  if (activeProfile === 'mental') s.unshift({id:'mh', lbl:'Mental Health'});
   return s;
 }
 
@@ -344,7 +359,7 @@ function renderUI() {
   document.getElementById('bedTabs').innerHTML = tabsHtml;
   
   const secOpts = getActiveSections();
-  if(!secOpts.find(x => x.id === curSec)) curSec = 'obs';
+  if(!secOpts.find(x => x.id === curSec)) curSec = secOpts[0].id;
   document.getElementById('subNav').innerHTML = showSummary ? '' : secOpts.map(s => `<button class="tab-btn ${s.id===curSec?'active-sec':''}" onclick="setSec('${s.id}')">${s.lbl}</button>`).join('');
   renderContent();
 }
@@ -420,8 +435,12 @@ function renderContent() {
       let skinGroup = [skinSummary, turnDetails, skintxt].filter(Boolean).join('<br><br>');
       if (skinGroup) sectionsHtml += `<div class="summary-sec"><b>Skin & Repositioning:</b><br>${skinGroup}</div>`;
 
-      if (d.mh && d.mh.length > 0) {
-        let mhTxt = d.mh.map(r => `<b>${r.time||'--:--'}</b> - Obs: ${r.lvl||'-'} | Mood: ${r.mood||'-'} | Sleep: ${r.sleep||'-'}<br>Risks: ${r.risks||'None'}<br>Notes: ${r.note||'-'}`).join('<br><br>');
+      if ((d.mh && d.mh.length > 0) || d.mhLevel) {
+        let mhTxt = '';
+        if (d.mhLevel) mhTxt += `<b style="color:var(--teal)">Current Level: ${d.mhLevel}</b><br><br>`;
+        if (d.mh && d.mh.length > 0) {
+          mhTxt += d.mh.map(r => `<b>${r.time||'--:--'}</b> - Mood: ${r.mood||'-'} | Sleep: ${r.sleep||'-'}<br>Risks: ${r.risks||'None'}<br>Notes: ${r.note||'-'}`).join('<br><br>');
+        }
         sectionsHtml += `<div class="summary-sec"><b>Mental Health:</b><br>${mhTxt}</div>`;
       }
 
@@ -614,7 +633,13 @@ function renderContent() {
   }
 
   if (curSec === 'mh') {
-    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
+    h += `<div class="card" style="border: 2px solid var(--teal);">
+            <label style="color:var(--teal); font-size:0.95rem;">Current Observation Level</label>
+            <select style="font-weight:bold; font-size:1.05rem;" onchange="updateField('${curBed}', 'mhLevel', null, null, this.value)">
+              ${opts(['', 'Level 1: General', 'Level 2: Intermittent', 'Level 3: Eyesight', 'Level 4: Arm\\'s Length'], d.mhLevel)}
+            </select>
+          </div>
+          <div style="display:flex; gap:8px; margin-bottom:16px;">
             <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('mh')">+ Add MH Record</button>
             <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('mh')">Obs Info</button>
           </div>`;
@@ -625,13 +650,10 @@ function renderContent() {
         </div>
         <div class="row">
           <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','mh',${i},'time',this.value)"></div>
-          <div><label>Obs Level</label><select onchange="updateField('${curBed}','mh',${i},'lvl',this.value)">${opts(['','General','15-min','30-min','1-to-1','2-to-1'], r.lvl)}</select></div>
-        </div>
-        <div class="row">
           <div><label>Mood</label><select onchange="updateField('${curBed}','mh',${i},'mood',this.value)">${opts(['','Calm','Anxious','Agitated','Low','Elevated','Hostile'], r.mood)}</select></div>
-          <div><label>Sleep Status</label><select onchange="updateField('${curBed}','mh',${i},'sleep',this.value)">${opts(['','Asleep','Settled','Restless','Out of Bed'], r.sleep)}</select></div>
         </div>
         <div class="row">
+          <div><label>Sleep Status</label><select onchange="updateField('${curBed}','mh',${i},'sleep',this.value)">${opts(['','Asleep','Settled','Restless','Out of Bed'], r.sleep)}</select></div>
           <div><label>Immediate Risks</label><input type="text" placeholder="e.g. Absconding, Aggression" value="${r.risks||''}" oninput="updateField('${curBed}','mh',${i},'risks',this.value)"></div>
         </div>
         <div class="row">
@@ -747,7 +769,6 @@ function refreshFluid() {
   const el = document.getElementById('fluid-totals');
   if (el) el.innerHTML = `<span>In: ${inT}</span><span>Out: ${outT}</span><span>Net: ${inT-outT}</span>`;
 }
-
 function showInfo(type) {
   const body = document.getElementById('infoBody');
   if (type === 'obs') {
@@ -760,8 +781,10 @@ function showInfo(type) {
     body.innerHTML = `<img src="glucose-targets.png" style="width:100%; border-radius:8px;" alt="Blood Glucose Targets">`;
   } else if (type === 'bowel') {
     body.innerHTML = `<img src="bristol-stool.png" style="width:100%; border-radius:8px;" alt="Bristol Stool Chart">`;
-    } else if (type === 'mh') {
+  } else if (type === 'mh') {
     body.innerHTML = `<img src="mh-obs-levels.png" style="width:100%; border-radius:8px;" alt="Mental Health Observation Levels">`;
+  } else if (type === 'guide') {
+    body.innerHTML = `<img src="quick-guide.png" style="width:100%; border-radius:8px;" alt="Quick Setup Guide">`;
   }
   document.getElementById('infoModal').classList.remove('hidden');
 }
@@ -797,7 +820,18 @@ function markSkinFine() { db[curBed].amy.sac = 'Fine'; db[curBed].amy.groin = 'F
 function setNoDateArr(i) { const d = new Date(); db[curBed].dressings[i].date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; saveDB(); renderContent(); }
 function calcDue(val) { if (!val) return '-'; const d = new Date(val); d.setDate(d.getDate() + 3); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; }
 function clearShift() { if (confirm("Clear all data and end shift?")) { localStorage.removeItem('cdu_alloc'); localStorage.removeItem('cdu_db'); localStorage.removeItem('cdu_start'); localStorage.removeItem('cdu_profile'); location.reload(); } }
-function handleSwipe() { if (showSummary || alloc.length <= 1) return; const diffX = touchEndX - touchStartX; const diffY = touchEndY - touchStartY; if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) { let idx = alloc.indexOf(curBed); idx += (diffX < 0) ? 1 : -1; if (idx >= alloc.length) idx = 0; if (idx < 0) idx = alloc.length - 1; setBed(alloc[idx]); } }
+function handleSwipe() { 
+  if (showSummary || alloc.length <= 1) return; 
+  const diffX = touchEndX - touchStartX; 
+  const diffY = touchEndY - touchStartY; 
+  if (Math.abs(diffX) > Math.abs(diffY) * 2 && Math.abs(diffX) > 100) { 
+    let idx = alloc.indexOf(curBed); 
+    idx += (diffX < 0) ? 1 : -1; 
+    if (idx >= alloc.length) idx = 0; 
+    if (idx < 0) idx = alloc.length - 1; 
+    setBed(alloc[idx]); 
+  } 
+}
 
 initSetup();
 </script>
