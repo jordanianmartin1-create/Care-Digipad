@@ -30,7 +30,7 @@
   .sticky-nav { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
   header { background: var(--navy); color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
   header h1 { font-size: 1.1rem; }
-  .scroll-row { display: flex; overflow-x: auto; padding: 10px 16px; gap: 8px; scrollbar-width: none; }
+  .scroll-row { display: flex; overflow-x: auto; padding: 10px 16px; gap: 8px; scrollbar-width: none; scroll-behavior: smooth; }
   .scroll-row::-webkit-scrollbar { display: none; }
   .tab-btn { padding: 8px 14px; border-radius: 20px; font-weight: 600; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 0.9rem; white-space: nowrap; cursor: pointer; }
   .tab-btn.active-bed { background: var(--teal); color: #fff; border-color: var(--teal); }
@@ -50,15 +50,6 @@
   .btn-danger { background: var(--red); color: #fff; }
   .btn-subtle { background: transparent; color: var(--text-sub); border: 1px solid var(--border); font-size: 0.9rem; padding: 8px; }
   .btn-sm { width: auto; padding: 6px 12px; font-size: 0.85rem; }
-  .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 700; display: inline-block; }
-  .bg-green { background: #dcfce7; color: #166534; }
-  .bg-amber { background: #fef3c7; color: #92400e; }
-  .bg-red { background: #fee2e2; color: #991b1b; }
-  .bg-info { background: #e0f2fe; color: #0284c7; cursor: pointer; border: 1px solid #bae6fd; }
-  [data-theme="night"] .bg-green { background: #064e3b; color: #34d399; }
-  [data-theme="night"] .bg-amber { background: #78350f; color: #fbbf24; }
-  [data-theme="night"] .bg-red { background: #7f1d1d; color: #f87171; }
-  [data-theme="night"] .bg-info { background: #0c4a6e; color: #38bdf8; border-color: #0284c7; }
   .summary-sec { border-bottom: 1px dashed var(--border); padding-bottom: 12px; margin-bottom: 12px; font-size: 0.95rem; line-height: 1.5; }
   .summary-sec:last-child { border-bottom: none; }
   .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); padding: 10px 16px; z-index: 100; text-align: center; }
@@ -69,35 +60,19 @@
   input:checked + .slider { background-color: var(--teal); }
   input:checked + .slider:before { transform: translateX(18px); }
   .shift-toggle { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 500; }
-  #infoModal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
-  .info-content { background: var(--card); padding: 20px; border-radius: 8px; width: 100%; max-height: 90vh; overflow-y: auto; text-align: center; }
-  .info-content img { max-width: 100%; border-radius: 4px; margin-bottom: 16px; }
   .task-alert { border: 2px solid var(--red) !important; animation: pulse 2s infinite; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } }
+  .mod-item { display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--border); background:var(--bg); }
+  .mod-item:last-child { border-bottom:none; }
 </style>
 </head>
 <body>
 <div id="dimmer"></div>
-<div id="infoModal" class="hidden">
-  <div class="info-content">
-    <div id="infoBody"></div>
-    <button class="btn btn-primary" onclick="document.getElementById('infoModal').classList.add('hidden')">Close Reference</button>
-  </div>
-</div>
 <div id="setupView" class="setup-container">
   <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
     <h2 style="margin:0;">Shift Setup</h2>
-    <button class="badge bg-info" style="padding:8px 12px; font-size:0.9rem;" onclick="showInfo('guide')">? Guide</button>
   </div>
-  <p style="font-size:0.9rem; color:var(--text-sub); margin-bottom:16px;">Configure your shift profile and layout.</p>
-  <div style="margin-bottom: 20px;">
-    <label>Shift Profile</label>
-    <select id="shiftProfile" style="margin-top:8px;">
-      <option value="acute">Physical Health (Acute) - NEWS2</option>
-      <option value="carehome">Care Home - RESTORE2</option>
-      <option value="mental">Mental Health - NEWS2 & Additional Tracking</option>
-    </select>
-  </div>
+  <p style="font-size:0.9rem; color:var(--text-sub); margin-bottom:16px;">Configure your layout and clinical modules.</p>
   <div style="margin-bottom: 20px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px;">
     <label>Load Saved Layout</label>
     <div style="display:flex; gap:8px;">
@@ -107,21 +82,24 @@
   </div>
   <div style="margin-bottom: 20px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px;">
     <label>1. Add Bed / Patient</label>
-    <p style="font-size:0.8rem; font-weight:bold; color:var(--red); margin-bottom:8px;">Confidentiality: Use initials or bed numbers only.</p>
     <div style="display:flex; gap:8px;">
       <input type="text" id="newBedInput" placeholder="e.g. Bed 4, JM" style="flex:1;">
       <button class="btn btn-primary" style="margin-top:0; width:auto; padding:0 20px;" onclick="addNewBed()">Add</button>
     </div>
   </div>
+  <div id="activeBedsList"></div>
+  <div id="bedGrid" class="bed-grid"></div>
   <div style="margin-bottom: 20px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px;">
-    <label>2. Save Layout As (Optional)</label>
+    <label style="margin-bottom:12px;">2. Active Modules & Order</label>
+    <div id="moduleSetupList" style="border:1px solid var(--border); border-radius:6px; overflow:hidden;"></div>
+  </div>
+  <div style="margin-bottom: 20px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px;">
+    <label>3. Save Layout As (Optional)</label>
     <div style="display:flex; gap:8px;">
       <input type="text" id="layoutNameInput" placeholder="e.g. Bay 1" style="flex:1;">
       <button class="btn btn-primary" style="margin-top:0; width:auto; padding:0 15px;" onclick="saveLayout()">Save</button>
     </div>
   </div>
-  <div id="activeBedsList"></div>
-  <div id="bedGrid" class="bed-grid"></div>
   <button class="btn btn-primary" style="background:var(--teal);" onclick="startShift()">Start / Update Shift</button>
 </div>
 <div id="mainView" class="hidden">
@@ -148,13 +126,28 @@
 <script>
 let savedLayouts = {};
 let currentLayoutBeds = [];
-let activeProfile = 'acute';
 let alloc = [];
 let db = {};
 let showSummary = false;
 let curBed = '';
 let curSec = 'obs';
 let isNight = false;
+
+let defaultMods = [
+  {id:'obs', lbl:'Vitals', on:true},
+  {id:'bm', lbl:'Glucose', on:true},
+  {id:'bp', lbl:'L/S BP', on:true},
+  {id:'fluid', lbl:'Fluids', on:true},
+  {id:'bowel', lbl:'Bowels', on:true},
+  {id:'amy', lbl:'Skin & Dressings', on:true},
+  {id:'food', lbl:'Diet', on:true},
+  {id:'turn', lbl:'Turning', on:true},
+  {id:'mh', lbl:'Mental Health', on:false},
+  {id:'events', lbl:'Narrative Notes', on:true},
+  {id:'reminders', lbl:'Tasks', on:true},
+  {id:'admit', lbl:'Admissions', on:false}
+];
+let activeMods = JSON.parse(JSON.stringify(defaultMods));
 
 let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
 let isSwipeAllowed = true;
@@ -178,11 +171,14 @@ try {
   const savedAlloc = localStorage.getItem('cdu_alloc');
   if (savedAlloc) alloc = JSON.parse(savedAlloc);
   
+  const savedWard = localStorage.getItem('cdu_ward');
+  if (savedWard) currentLayoutBeds = JSON.parse(savedWard);
+  
+  const savedMods = localStorage.getItem('cdu_mods');
+  if (savedMods) activeMods = JSON.parse(savedMods);
+  
   const savedDb = localStorage.getItem('cdu_db');
   if (savedDb) db = JSON.parse(savedDb);
-  
-  const savedProfile = localStorage.getItem('cdu_profile');
-  if (savedProfile) activeProfile = savedProfile;
   
   const shiftLimit = 14 * 60 * 60 * 1000;
   let shiftStart = localStorage.getItem('cdu_start');
@@ -190,9 +186,11 @@ try {
     localStorage.removeItem('cdu_alloc');
     localStorage.removeItem('cdu_db');
     localStorage.removeItem('cdu_start');
-    alloc = []; db = {};
+    localStorage.removeItem('cdu_ward');
+    localStorage.removeItem('cdu_mods');
+    alloc = []; db = {}; currentLayoutBeds = [];
   }
-} catch(e) { alloc = []; db = {}; }
+} catch(e) { alloc = []; db = {}; currentLayoutBeds = []; }
 
 if (alloc.length > 0) curBed = alloc[0];
 
@@ -208,18 +206,39 @@ function generateTimeOpts(sel) {
 }
 
 function initSetup() {
-  document.getElementById('shiftProfile').value = activeProfile;
   updateLayoutDropdown();
-  
   if (localStorage.getItem('cdu_alloc')) {
     renderSetupGrid();
+    renderMods();
     startShift(true);
   } else {
     if(Object.keys(savedLayouts).length > 0) {
       loadLayout(Object.keys(savedLayouts)[0]);
     }
     renderSetupGrid();
+    renderMods();
   }
+}
+
+function renderMods() {
+  const mList = document.getElementById('moduleSetupList');
+  mList.innerHTML = activeMods.map((m, i) => `
+    <div class="mod-item">
+      <input type="checkbox" ${m.on?'checked':''} onchange="toggleMod(${i}, this.checked)" style="width:20px; height:20px; margin-right:12px;">
+      <span style="flex:1; font-weight:600; color:var(--text);">${m.lbl}</span>
+      <button class="btn btn-subtle btn-sm" style="padding:4px 10px;" onclick="moveMod(${i}, -1)">↑</button>
+      <button class="btn btn-subtle btn-sm" style="padding:4px 10px; margin-left:4px;" onclick="moveMod(${i}, 1)">↓</button>
+    </div>
+  `).join('');
+}
+
+function toggleMod(i, val) { activeMods[i].on = val; }
+function moveMod(i, dir) {
+  if (i+dir < 0 || i+dir >= activeMods.length) return;
+  const temp = activeMods[i];
+  activeMods[i] = activeMods[i+dir];
+  activeMods[i+dir] = temp;
+  renderMods();
 }
 
 function updateLayoutDropdown() {
@@ -231,7 +250,7 @@ function updateLayoutDropdown() {
 function saveLayout() {
   const name = document.getElementById('layoutNameInput').value.trim();
   if(!name) return alert('Enter a layout name.');
-  savedLayouts[name] = [...currentLayoutBeds];
+  savedLayouts[name] = { beds: [...currentLayoutBeds], mods: [...activeMods] };
   localStorage.setItem('cdu_layouts', JSON.stringify(savedLayouts));
   updateLayoutDropdown();
   document.getElementById('savedLayoutsDropdown').value = name;
@@ -240,9 +259,16 @@ function saveLayout() {
 
 function loadLayout(name) {
   if(!savedLayouts[name]) return;
-  currentLayoutBeds = [...savedLayouts[name]];
+  if(Array.isArray(savedLayouts[name])) {
+    currentLayoutBeds = [...savedLayouts[name]];
+    activeMods = JSON.parse(JSON.stringify(defaultMods));
+  } else {
+    currentLayoutBeds = [...savedLayouts[name].beds];
+    activeMods = JSON.parse(JSON.stringify(savedLayouts[name].mods));
+  }
   alloc = [...currentLayoutBeds]; 
   renderSetupGrid();
+  renderMods();
 }
 
 function deleteLayout() {
@@ -250,20 +276,16 @@ function deleteLayout() {
   if(!name || !confirm(`Delete layout ${name}?`)) return;
   delete savedLayouts[name];
   localStorage.setItem('cdu_layouts', JSON.stringify(savedLayouts));
-  currentLayoutBeds = [];
-  alloc = [];
-  updateLayoutDropdown();
-  renderSetupGrid();
+  currentLayoutBeds = []; alloc = [];
+  updateLayoutDropdown(); renderSetupGrid(); renderMods();
 }
 
 function addNewBed() {
   const input = document.getElementById('newBedInput');
   const val = input.value.trim();
   if (val && !currentLayoutBeds.includes(val)) {
-    currentLayoutBeds.push(val);
-    alloc.push(val);
-    input.value = '';
-    renderSetupGrid();
+    currentLayoutBeds.push(val); alloc.push(val);
+    input.value = ''; renderSetupGrid();
   }
 }
 
@@ -292,9 +314,11 @@ function toggleAlloc(bed) {
 function startShift(auto = false) {
   if (!auto) {
     if (alloc.length === 0) return alert('Select at least one bed.');
-    activeProfile = document.getElementById('shiftProfile').value;
+    currentLayoutBeds.sort((a,b) => a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
+    alloc.sort((a,b) => a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
     localStorage.setItem('cdu_alloc', JSON.stringify(alloc));
-    localStorage.setItem('cdu_profile', activeProfile);
+    localStorage.setItem('cdu_ward', JSON.stringify(currentLayoutBeds));
+    localStorage.setItem('cdu_mods', JSON.stringify(activeMods));
     if (!localStorage.getItem('cdu_start')) localStorage.setItem('cdu_start', Date.now().toString());
   }
   
@@ -329,13 +353,9 @@ function toggleNight(val) { isNight = val; document.body.setAttribute('data-them
 function setBed(b) { curBed = b; showSummary = false; renderUI(); }
 function setSec(s) { curSec = s; showSummary = false; renderUI(); }
 function toggleSummary() { showSummary = true; renderUI(); }
-function editBeds() { document.getElementById('mainView').classList.add('hidden'); document.getElementById('setupView').classList.remove('hidden'); renderSetupGrid(); }
+function editBeds() { document.getElementById('mainView').classList.add('hidden'); document.getElementById('setupView').classList.remove('hidden'); renderSetupGrid(); renderMods(); }
 
-function getActiveSections() {
-  let s = [ {id:'obs', lbl:'Observations'}, {id:'bm', lbl:'Glucose'}, {id:'bp', lbl:'L/S BP'}, {id:'fluid', lbl:'Fluids'}, {id:'bowel', lbl:'Bowels'}, {id:'amy', lbl:'Skin'}, {id:'food', lbl:'Food'}, {id:'turn', lbl:'Turning'}, {id:'events', lbl:'Events'}, {id:'admit', lbl:'Admissions'}, {id:'reminders', lbl:'Tasks'} ];
-  if (activeProfile === 'mental') s.unshift({id:'mh', lbl:'Mental Health'});
-  return s;
-}
+function getActiveSections() { return activeMods.filter(m => m.on); }
 
 function tRow(b, s, i) { db[b].td[`${s}_${i}`] = !db[b].td[`${s}_${i}`]; saveDB(); renderContent(); }
 function tFlat(b, s) { db[b].td[s] = !db[b].td[s]; saveDB(); renderContent(); }
@@ -359,9 +379,16 @@ function renderUI() {
   let tabsHtml = `<button class="tab-btn ${showSummary ? 'active-summary' : ''}" onclick="toggleSummary()">Handover Summary</button>`;
   tabsHtml += alloc.map(b => `<button class="tab-btn ${b===curBed && !showSummary ?'active-bed':''}" onclick="setBed('${b}')">${b}</button>`).join('');
   document.getElementById('bedTabs').innerHTML = tabsHtml;
+  
   const secOpts = getActiveSections();
-  if(!secOpts.find(x => x.id === curSec)) curSec = secOpts[0].id;
+  if(secOpts.length > 0 && !secOpts.find(x => x.id === curSec)) curSec = secOpts[0].id;
   document.getElementById('subNav').innerHTML = showSummary ? '' : secOpts.map(s => `<button class="tab-btn ${s.id===curSec?'active-sec':''}" onclick="setSec('${s.id}')">${s.lbl}</button>`).join('');
+  
+  setTimeout(() => {
+    const actTab = document.querySelector('.tab-btn.active-bed') || document.querySelector('.tab-btn.active-summary');
+    if(actTab) actTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, 50);
+
   renderContent();
 }
 
@@ -373,36 +400,23 @@ function renderContent() {
       const d = db[b];
       if (!d) return;
       if (!d.td) d.td = {};
-      let hasAlerts = false; let sectionsHtml = '';
+      let sectionsHtml = '';
+      const sOn = id => activeMods.find(m => m.id === id && m.on);
       
-      if (d.obs && d.obs.length > 0) {
-        sectionsHtml += `<div class="summary-sec"><b>Observations:</b><br>` + d.obs.map((l,i) => {
-          const sc = calcN2(l); if (sc >= 5 || l.soft) hasAlerts = true;
-          let fw = activeProfile === 'carehome' ? 'RESTORE2' : 'NEWS2';
-          let txt = `${l.time||'--:--'} - ${fw} Score ${sc} (RR ${l.rr||'-'}, SpO2 ${l.spo2||'-'}%, ${l.o2||'Air'}, BP ${l.sys||'-'}/${l.dia||'-'}, HR ${l.hr||'-'}, ${l.acvpu||'Alert'}, Temp ${l.t||'-'}°C)`;
-          if(l.soft) txt += `<br><i style="color:var(--red)">Soft Signs: ${l.soft}</i>`;
-          if(sc>=5 || l.soft) txt = `<b style="color:var(--red)">${txt}</b>`;
-          return rowUI(txt, b, 'obs', i);
+      if (sOn('obs') && d.obs && d.obs.length > 0) {
+        sectionsHtml += `<div class="summary-sec"><b>Vitals:</b><br>` + d.obs.map((l,i) => {
+          return rowUI(`${l.time||'--:--'} - RR ${l.rr||'-'}, SpO2 ${l.spo2||'-'}% (${l.o2||'Air'}), BP ${l.sys||'-'}/${l.dia||'-'}, HR ${l.hr||'-'}, ${l.acvpu||'Alert'}, Temp ${l.t||'-'}°C`, b, 'obs', i);
         }).join('') + `</div>`;
       }
       
-      if (d.bm && d.bm.length > 0) {
-        sectionsHtml += `<div class="summary-sec"><b>Blood Glucose:</b><br>` + d.bm.map((l,i) => {
-          const v = parseFloat(l.val); if (v < 4 || v > 11) hasAlerts = true;
-          let txt = `${l.time||'--:--'} - Glucose: ${l.val||'-'} mmol/L (${l.meal||'Unspecified'})`;
-          if (v < 4 || v > 11) txt = `<b style="color:var(--red)">${txt}</b>`;
-          return rowUI(txt, b, 'bm', i);
-        }).join('') + `</div>`;
+      if (sOn('bm') && d.bm && d.bm.length > 0) {
+        sectionsHtml += `<div class="summary-sec"><b>Blood Glucose:</b><br>` + d.bm.map((l,i) => rowUI(`${l.time||'--:--'} - Glucose: ${l.val||'-'} mmol/L (${l.meal||'Unspecified'})`, b, 'bm', i)).join('') + `</div>`;
       }
 
-      if (d.bp && (d.bp.lsys || d.bp.ldia || d.bp.ssys || d.bp.sdia)) {
-        const lsys = parseFloat(d.bp.lsys)||0, ssys = parseFloat(d.bp.ssys)||0;
+      if (sOn('bp') && d.bp && (d.bp.lsys || d.bp.ldia || d.bp.ssys || d.bp.sdia)) {
         let txt = `Lying: ${d.bp.lsys||'-'}/${d.bp.ldia||'-'} | Standing: ${d.bp.ssys||'-'}/${d.bp.sdia||'-'}`;
-        if (lsys && ssys) {
-          const drop = lsys - ssys;
-          txt += `<br>Drop: ${drop >= 20 ? `<b style="color:var(--red)">-${drop}</b>` : `-${drop}`}`;
-          if (drop >= 20) hasAlerts = true;
-        }
+        const lsys = parseFloat(d.bp.lsys)||0, ssys = parseFloat(d.bp.ssys)||0;
+        if (lsys && ssys) txt += `<br>Drop: -${lsys - ssys}`;
         sectionsHtml += `<div class="summary-sec"><b>L/S Blood Pressure:</b><br>` + flatUI(txt, b, 'bp') + `</div>`;
       }
       
@@ -413,10 +427,10 @@ function renderContent() {
           if(d.td[`fl_${i}`]) { tIn+=In; tOut+=Out; } else { pIn+=In; pOut+=Out; }
         });
       }
-      let fHtml = '';
-      if(tIn||tOut) fHtml += `<div style="opacity:0.5; margin-bottom:8px;"><b>Transcribed:</b> In ${tIn}ml | Out ${tOut}ml | Net ${tIn-tOut}ml</div>`;
-      if(pIn||pOut) fHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border);"><span><b>Pending:</b> In ${pIn}ml | Out ${pOut}ml | Net ${pIn-pOut}ml</span> <button onclick="tFluid('${b}')" style="padding:2px 6px; font-size:0.75rem; border-radius:4px; cursor:pointer; background:transparent; border:1px solid var(--border);">Mark Done</button></div>`;
-      if(tIn||tOut||pIn||pOut) {
+      if (sOn('fluid') && (tIn||tOut||pIn||pOut)) {
+        let fHtml = '';
+        if(tIn||tOut) fHtml += `<div style="opacity:0.5; margin-bottom:8px;"><b>Transcribed:</b> In ${tIn}ml | Out ${tOut}ml | Net ${tIn-tOut}ml</div>`;
+        if(pIn||pOut) fHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border);"><span><b>Pending:</b> In ${pIn}ml | Out ${pOut}ml | Net ${pIn-pOut}ml</span> <button onclick="tFluid('${b}')" style="padding:2px 6px; font-size:0.75rem; border-radius:4px; cursor:pointer; background:transparent; border:1px solid var(--border); color:var(--text-sub);">Mark Done</button></div>`;
         fHtml += `<div style="font-weight:bold;">Shift Total: In ${tIn+pIn}ml | Out ${tOut+pOut}ml | Net ${(tIn+pIn)-(tOut+pOut)}ml</div>`;
         sectionsHtml += `<div class="summary-sec"><b>Fluid Balance:</b><br>${fHtml}</div>`;
       }
@@ -425,9 +439,9 @@ function renderContent() {
       if (d.food && d.food.b) dietParts.push(`Breakfast: ${d.food.b}`);
       if (d.food && d.food.l) dietParts.push(`Lunch: ${d.food.l}`);
       if (d.food && d.food.d) dietParts.push(`Dinner: ${d.food.d}`);
-      if (dietParts.length > 0) sectionsHtml += `<div class="summary-sec"><b>Diet:</b><br>` + flatUI(dietParts.join(' | '), b, 'food') + `</div>`;
+      if (sOn('food') && dietParts.length > 0) sectionsHtml += `<div class="summary-sec"><b>Diet:</b><br>` + flatUI(dietParts.join(' | '), b, 'food') + `</div>`;
 
-      if (d.bowel && d.bowel.length > 0) {
+      if (sOn('bowel') && d.bowel && d.bowel.length > 0) {
         sectionsHtml += `<div class="summary-sec"><b>Bowels:</b><br>` + d.bowel.map((r,i) => rowUI(`${r.time||'--:--'} - ${r.amt||'-'} (${r.type||'-'})`, b, 'bowel', i)).join('') + `</div>`;
       }
       
@@ -436,45 +450,41 @@ function renderContent() {
       if (d.amy && d.amy.groin) skinP.push(`Groin (${d.amy.groin})`);
       if (d.amy && d.amy.heels) skinP.push(`Heels (${d.amy.heels})`);
       if (d.amy && d.amy.elbows) skinP.push(`Elbows (${d.amy.elbows})`);
-      if (skinP.length > 0) sectionsHtml += `<div class="summary-sec"><b>Skin Checks:</b><br>` + flatUI(skinP.join(', '), b, 'amy') + `</div>`;
+      if (sOn('amy') && skinP.length > 0) sectionsHtml += `<div class="summary-sec"><b>Skin Checks:</b><br>` + flatUI(skinP.join(', '), b, 'amy') + `</div>`;
       
-      if (d.dressings && d.dressings.length > 0) {
+      if (sOn('amy') && d.dressings && d.dressings.length > 0) {
         sectionsHtml += `<div class="summary-sec"><b>Dressings:</b><br>` + d.dressings.map((dr,i) => rowUI(`${dr.val || 'Unnamed'} (Due: <b>${calcDue(dr.date)}</b>)`, b, 'dressings', i)).join('') + `</div>`;
       }
 
       const tTimes = isNight ? ['20:00','22:00','00:00','02:00','04:00','06:00'] : ['08:00','10:00','12:00','14:00','16:00','18:00'];
       let hasTurn = d.turn && d.turn.some(t => t !== '');
-      if (hasTurn) {
+      if (sOn('turn') && hasTurn) {
         sectionsHtml += `<div class="summary-sec"><b>Turning:</b><br>` + d.turn.map((t,i) => t !== '' ? rowUI(`${tTimes[i]} - ${t}`, b, 'turn', i) : '').join('') + `</div>`;
       }
 
-      if (d.mhLevel || (d.mh && d.mh.length > 0)) {
+      if (sOn('mh') && (d.mhLevel || (d.mh && d.mh.length > 0))) {
          sectionsHtml += `<div class="summary-sec"><b>Mental Health:</b><br>`;
-         if(d.mhLevel) sectionsHtml += flatUI(`<b style="color:var(--teal)">Current Level: ${d.mhLevel}</b>`, b, 'mhLevel');
+         if(d.mhLevel) sectionsHtml += flatUI(`<b>Current Level: ${d.mhLevel}</b>`, b, 'mhLevel');
          if(d.mh && d.mh.length > 0) {
            sectionsHtml += d.mh.map((r,i) => rowUI(`<b>${r.time||'--:--'}</b> - Mood: ${r.mood||'-'} | Sleep: ${r.sleep||'-'}<br>Risks: ${r.risks||'None'}<br>Notes: ${r.note||'-'}`, b, 'mh', i)).join('');
          }
          sectionsHtml += `</div>`;
       }
 
-      if (d.events && d.events.length > 0) {
+      if (sOn('events') && d.events && d.events.length > 0) {
         sectionsHtml += `<div class="summary-sec"><b>Narrative Notes:</b><br>` + d.events.map((r,i) => rowUI(`${r.time||'--:--'} - ${r.val||''}`, b, 'events', i)).join('') + `</div>`;
       }
 
-      if (d.reminders && d.reminders.length > 0) {
-        sectionsHtml += `<div class="summary-sec"><b>Tasks / Reminders:</b><br>` + d.reminders.map((r,i) => {
-          let txt = `<b>${r.time||'--:--'} - ${r.task||'Unnamed Task'}:</b> ${r.outcome||'Pending'}`;
-          if (!r.outcome && r.time <= tNow()) txt = `<span style="color:var(--red)">${txt}</span>`;
-          return rowUI(txt, b, 'reminders', i);
-        }).join('') + `</div>`;
+      if (sOn('reminders') && d.reminders && d.reminders.length > 0) {
+        sectionsHtml += `<div class="summary-sec"><b>Tasks / Reminders:</b><br>` + d.reminders.map((r,i) => rowUI(`<b>${r.time||'--:--'} - ${r.task||'Unnamed Task'}:</b> ${r.outcome||'Pending'}`, b, 'reminders', i)).join('') + `</div>`;
       }
       
-      if (d.admit && d.admit.length > 0) {
+      if (sOn('admit') && d.admit && d.admit.length > 0) {
         sectionsHtml += `<div class="summary-sec"><b>Admissions Property:</b><br>` + d.admit.map((r,i) => rowUI(`- ${r.val||''}`, b, 'admit', i)).join('') + `</div>`;
       }
 
-      h += `<div class="card" ${hasAlerts ? 'style="border-left:4px solid var(--red);"' : 'style="border-left:4px solid var(--green);"'} >
-        <h2 style="color:var(--navy); margin-bottom:12px; font-size:1.2rem;">${b}</h2>
+      h += `<div class="card">
+        <h2 style="color:var(--text); margin-bottom:12px; font-size:1.2rem;">${b}</h2>
         ${sectionsHtml || `<p style="color:var(--text-sub); font-size:0.9rem;">No data recorded yet.</p>`}
       </div>`;
     });
@@ -486,74 +496,55 @@ function renderContent() {
   let h = '';
 
   if (curSec === 'obs') {
-    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
-            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('obs')">+ Add Vitals</button>
-            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('obs')">Chart Info</button>
-          </div>`;
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('obs')">+ Add Vitals</button>`;
     d.obs.forEach((r, i) => {
-      const sc = calcN2(r);
-      const bg = sc >= 7 ? 'bg-red' : (sc >= 5 ? 'bg-amber' : (sc > 0 ? 'bg-amber' : 'bg-green'));
       h += `<div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <span id="n2-badge-${i}" class="badge ${bg}">Score: ${sc}</span>
+          <b style="color:var(--text);">Vitals Record</b>
           <button class="btn btn-danger btn-sm" onclick="rmArr('obs', ${i})">X</button>
-        </div>`;
-      if(activeProfile === 'carehome') {
-        h += `<div class="row" style="margin-bottom:12px;"><div><label style="color:var(--red)">RESTORE2 Soft Signs (Comma separated)</label><input type="text" placeholder="e.g. Confusion, Reduced Mobility" value="${r.soft||''}" oninput="updateField('${curBed}','obs',${i},'soft',this.value)"></div></div>`;
-      }
-      h += `
+        </div>
         <div class="row">
           <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','obs',${i},'time',this.value)"></div>
-          <div><label>RR</label><input type="number" min="0" max="60" value="${r.rr||''}" oninput="updateField('${curBed}','obs',${i},'rr',this.value); validateInput(this, 'rr', this.value); refreshN2(${i})"></div>
-          <div><label>SpO2%</label><input type="number" min="0" max="100" value="${r.spo2||''}" oninput="updateField('${curBed}','obs',${i},'spo2',this.value); refreshN2(${i})"></div>
+          <div><label>RR</label><input type="number" min="0" max="60" value="${r.rr||''}" oninput="updateField('${curBed}','obs',${i},'rr',this.value)"></div>
+          <div><label>SpO2%</label><input type="number" min="0" max="100" value="${r.spo2||''}" oninput="updateField('${curBed}','obs',${i},'spo2',this.value)"></div>
         </div>
         <div class="row">
-          <div><label>Air/O2</label><select onchange="updateField('${curBed}','obs',${i},'o2',this.value); refreshN2(${i})"><option>Air</option><option ${r.o2==='O2'?'selected':''}>O2</option></select></div>
-          <div><label>BP (Sys/Dia)</label><div class="bp-pair"><input type="number" value="${r.sys||''}" oninput="updateField('${curBed}','obs',${i},'sys',this.value); validateInput(this, 'sys', this.value); refreshN2(${i})"><span>/</span><input type="number" value="${r.dia||''}" oninput="updateField('${curBed}','obs',${i},'dia',this.value); validateInput(this, 'dia', this.value);"></div></div>
+          <div><label>Air/O2</label><select onchange="updateField('${curBed}','obs',${i},'o2',this.value)"><option>Air</option><option ${r.o2==='O2'?'selected':''}>O2</option></select></div>
+          <div><label>BP (Sys/Dia)</label><div class="bp-pair"><input type="number" value="${r.sys||''}" oninput="updateField('${curBed}','obs',${i},'sys',this.value)"><span>/</span><input type="number" value="${r.dia||''}" oninput="updateField('${curBed}','obs',${i},'dia',this.value)"></div></div>
         </div>
         <div class="row">
-          <div><label>HR</label><input type="number" value="${r.hr||''}" oninput="updateField('${curBed}','obs',${i},'hr',this.value); validateInput(this, 'hr', this.value); refreshN2(${i})"></div>
-          <div><label>ACVPU</label><select onchange="updateField('${curBed}','obs',${i},'acvpu',this.value); refreshN2(${i})"><option>Alert</option><option ${r.acvpu==='CVPU'?'selected':''}>CVPU</option></select></div>
-          <div><label>Temp</label><input type="number" step="0.1" value="${r.t||''}" oninput="updateField('${curBed}','obs',${i},'t',this.value); validateInput(this, 't', this.value); refreshN2(${i})"></div>
+          <div><label>HR</label><input type="number" value="${r.hr||''}" oninput="updateField('${curBed}','obs',${i},'hr',this.value)"></div>
+          <div><label>ACVPU</label><select onchange="updateField('${curBed}','obs',${i},'acvpu',this.value)"><option>Alert</option><option ${r.acvpu==='CVPU'?'selected':''}>CVPU</option></select></div>
+          <div><label>Temp</label><input type="number" step="0.1" value="${r.t||''}" oninput="updateField('${curBed}','obs',${i},'t',this.value)"></div>
         </div>
       </div>`;
     });
   }
 
   if (curSec === 'bm') {
-    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
-            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('bm')">+ Add Glucose</button>
-            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('bm')">Targets</button>
-          </div>`;
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('bm')">+ Add Glucose</button>`;
     d.bm.forEach((r, i) => {
-      const v = parseFloat(r.val);
-      let bg = 'bg-green', txt = 'Pending';
-      if(v) { bg = v<4?'bg-red':(v>11?'bg-red':'bg-green'); txt = v<4?'HYPO':(v>11?'HIGH':'TARGET'); }
       h += `<div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <span id="bm-badge-${i}" class="badge ${bg}">${txt}</span>
+          <b style="color:var(--text);">Glucose Record</b>
           <button class="btn btn-danger btn-sm" onclick="rmArr('bm', ${i})">X</button>
         </div>
         <div class="row">
           <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','bm',${i},'time',this.value)"></div>
           <div><label>Meal</label><select onchange="updateField('${curBed}','bm',${i},'meal',this.value)">${opts(['','Pre-Breakfast','Post-Breakfast','Pre-Lunch','Post-Lunch','Pre-Dinner','Post-Dinner','Night'], r.meal)}</select></div>
-          <div><label>mmol/L</label><input type="number" step="0.1" value="${r.val||''}" oninput="updateField('${curBed}','bm',${i},'val',this.value); refreshBM(${i})"></div>
+          <div><label>mmol/L</label><input type="number" step="0.1" value="${r.val||''}" oninput="updateField('${curBed}','bm',${i},'val',this.value)"></div>
         </div>
       </div>`;
     });
   }
 
   if (curSec === 'bp') {
-    const l = parseFloat(d.bp.lsys)||0, s = parseFloat(d.bp.ssys)||0, drop = l - s;
-    const bg = (!l||!s) ? 'bg-green' : (drop>=20 ? 'bg-red' : 'bg-green');
-    const txt = (!l||!s) ? 'Normal' : (drop>=20 ? `Drop (-${drop})` : `Normal (${drop})`);
     h += `<div class="card">
-      <span id="bp-badge" class="badge ${bg}" style="margin-bottom:12px;">${txt}</span>
       <div class="row">
-        <div><label>Lying BP (Sys/Dia)</label><div class="bp-pair"><input type="number" value="${d.bp.lsys}" oninput="updateField('${curBed}','bp',null,'lsys',this.value); validateInput(this, 'sys', this.value); refreshBP()"><span>/</span><input type="number" value="${d.bp.ldia}" oninput="updateField('${curBed}','bp',null,'ldia',this.value); validateInput(this, 'dia', this.value);"></div></div>
+        <div><label>Lying BP (Sys/Dia)</label><div class="bp-pair"><input type="number" value="${d.bp.lsys}" oninput="updateField('${curBed}','bp',null,'lsys',this.value)"><span>/</span><input type="number" value="${d.bp.ldia}" oninput="updateField('${curBed}','bp',null,'ldia',this.value)"></div></div>
       </div>
       <div class="row">
-        <div><label>Standing BP (Sys/Dia)</label><div class="bp-pair"><input type="number" value="${d.bp.ssys}" oninput="updateField('${curBed}','bp',null,'ssys',this.value); validateInput(this, 'sys', this.value); refreshBP()"><span>/</span><input type="number" value="${d.bp.sdia}" oninput="updateField('${curBed}','bp',null,'sdia',this.value); validateInput(this, 'dia', this.value);"></div></div>
+        <div><label>Standing BP (Sys/Dia)</label><div class="bp-pair"><input type="number" value="${d.bp.ssys}" oninput="updateField('${curBed}','bp',null,'ssys',this.value)"><span>/</span><input type="number" value="${d.bp.sdia}" oninput="updateField('${curBed}','bp',null,'sdia',this.value)"></div></div>
       </div>
     </div>`;
   }
@@ -573,14 +564,11 @@ function renderContent() {
   }
 
   if (curSec === 'bowel') {
-    h += `<div style="display:flex; gap:8px; margin-bottom:16px;">
-            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('bowel')">+ Add Bowel Record</button>
-            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('bowel')">Chart Info</button>
-          </div>`;
+    h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('bowel')">+ Add Bowel Record</button>`;
     d.bowel.forEach((r, i) => {
       h += `<div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <b>Entry ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('bowel', ${i})">X</button>
+          <b>Entry</b><button class="btn btn-danger btn-sm" onclick="rmArr('bowel', ${i})">X</button>
         </div>
         <div class="row">
           <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','bowel',${i},'time',this.value)"></div>
@@ -608,7 +596,7 @@ function renderContent() {
     d.dressings.forEach((r, i) => {
       h += `<div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <b>Dressing ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('dressings', ${i})">X</button>
+          <b>Dressing</b><button class="btn btn-danger btn-sm" onclick="rmArr('dressings', ${i})">X</button>
         </div>
         <div class="row">
           <div><label>Location</label><input type="text" placeholder="e.g. Sacrum" value="${r.val||''}" oninput="updateField('${curBed}','dressings',${i},'val',this.value)"></div>
@@ -649,14 +637,11 @@ function renderContent() {
               ${opts(['', 'Level 1: General', 'Level 2: Intermittent', 'Level 3: Eyesight', "Level 4: Arm's Length"], d.mhLevel)}
             </select>
           </div>
-          <div style="display:flex; gap:8px; margin-bottom:16px;">
-            <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="addArr('mh')">+ Add MH Record</button>
-            <button class="badge bg-info" style="padding:12px; display:flex; align-items:center; justify-content:center;" onclick="showInfo('mh')">Obs Info</button>
-          </div>`;
+          <button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('mh')">+ Add MH Record</button>`;
     d.mh.forEach((r, i) => {
       h += `<div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <b>MH Entry ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('mh', ${i})">X</button>
+          <b>MH Entry</b><button class="btn btn-danger btn-sm" onclick="rmArr('mh', ${i})">X</button>
         </div>
         <div class="row">
           <div><label>Time</label><input type="time" value="${r.time||''}" oninput="updateField('${curBed}','mh',${i},'time',this.value)"></div>
@@ -690,7 +675,7 @@ function renderContent() {
       let isOverdue = (!r.outcome && r.time && r.time <= tNow());
       h += `<div class="card ${isOverdue ? 'task-alert' : ''}">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <b>Task ${i+1}</b><button class="btn btn-danger btn-sm" onclick="rmArr('reminders', ${i})">X</button>
+          <b>Task</b><button class="btn btn-danger btn-sm" onclick="rmArr('reminders', ${i})">X</button>
         </div>
         <div class="row">
           <div><label>Due Time</label><select onchange="updateField('${curBed}','reminders',${i},'time',this.value); renderContent()">${generateTimeOpts(r.time)}</select></div>
@@ -707,7 +692,7 @@ function renderContent() {
     h += `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="addArr('admit')">+ Add Property Item</button>`;
     d.admit.forEach((r, i) => {
       h += `<div class="card row" style="align-items:center;">
-        <input type="text" placeholder="Item description (e.g. Dentures, Gold Ring)" value="${r.val||''}" oninput="updateField('${curBed}','admit',${i},'val',this.value)">
+        <input type="text" placeholder="Item description" value="${r.val||''}" oninput="updateField('${curBed}','admit',${i},'val',this.value)">
         <button class="btn btn-danger btn-sm" style="flex:0 0 auto;" onclick="rmArr('admit', ${i})">X</button>
       </div>`;
     });
@@ -724,80 +709,10 @@ function updateField(bed, sec, idx, prop, val) {
   saveDB();
 }
 
-function validateInput(el, type, val) {
-  if(val === '') { el.style.borderColor = 'var(--border)'; el.style.borderWidth = '1px'; return; }
-  const v = parseFloat(val); let err = false;
-  if (type === 'hr' && (v < 20 || v > 300)) err = true;
-  if (type === 'rr' && (v < 4 || v > 60)) err = true;
-  if (type === 'sys' && (v < 40 || v > 300)) err = true;
-  if (type === 'dia' && (v < 20 || v > 200)) err = true;
-  if (type === 't' && (v < 30 || v > 45)) err = true;
-  el.style.borderColor = err ? 'var(--red)' : 'var(--border)';
-  el.style.borderWidth = err ? '2px' : '1px';
-}
-
-function calcN2(e) {
-  let sc = 0; const r=parseFloat(e.rr), sp=parseFloat(e.spo2), sy=parseFloat(e.sys), h=parseFloat(e.hr), t=parseFloat(e.t);
-  if(r) sc += (r<=8||r>=25)?3: (r>=21)?2: (r<=11)?1:0;
-  if(sp) sc += (sp<=91)?3: (sp<=93)?2: (sp<=95)?1:0;
-  if(e.o2==='O2') sc += 2;
-  if(sy) sc += (sy<=90||sy>=220)?3: (sy<=100)?2: (sy<=110)?1:0;
-  if(h) sc += (h<=40||h>=131)?3: (h>=111)?2: (h<=50||h>=91)?1:0;
-  if(e.acvpu && e.acvpu!=='Alert') sc += 3;
-  if(t) sc += (t<=35.0)?3: (t>=39.1)?2: (t>=35.1&&t<=36.0 || t>=38.1&&t<=39.0)?1:0;
-  return sc;
-}
-
-function refreshN2(idx) {
-  const r = db[curBed].obs[idx];
-  const sc = calcN2(r);
-  const bg = sc >= 7 ? 'bg-red' : (sc >= 5 ? 'bg-amber' : (sc > 0 ? 'bg-amber' : 'bg-green'));
-  const badge = document.getElementById(`n2-badge-${idx}`);
-  if (badge) { badge.className = `badge ${bg}`; badge.textContent = `Score: ${sc}`; }
-}
-
-function refreshBM(idx) {
-  const r = db[curBed].bm[idx];
-  const v = parseFloat(r.val);
-  let bg = 'bg-green', txt = 'Pending';
-  if(v) { bg = v<4?'bg-red':(v>11?'bg-red':'bg-green'); txt = v<4?'HYPO':(v>11?'HIGH':'TARGET'); }
-  const badge = document.getElementById(`bm-badge-${idx}`);
-  if (badge) { badge.className = `badge ${bg}`; badge.textContent = txt; }
-}
-
-function refreshBP() {
-  const d = db[curBed].bp;
-  const l = parseFloat(d.lsys)||0, s = parseFloat(d.ssys)||0, drop = l - s;
-  const bg = (!l||!s) ? 'bg-green' : (drop>=20 ? 'bg-red' : 'bg-green');
-  const txt = (!l||!s) ? 'Normal' : (drop>=20 ? `Drop (-${drop})` : `Normal (${drop})`);
-  const badge = document.getElementById(`bp-badge`);
-  if (badge) { badge.className = `badge ${bg}`; badge.textContent = txt; }
-}
-
 function refreshFluid() {
   let inT=0, outT=0; db[curBed].fluid.forEach(f=>{ inT+=parseFloat(f.i)||0; outT+=parseFloat(f.o)||0; });
   const el = document.getElementById('fluid-totals');
   if (el) el.innerHTML = `<span>In: ${inT}</span><span>Out: ${outT}</span><span>Net: ${inT-outT}</span>`;
-}
-
-function showInfo(type) {
-  const body = document.getElementById('infoBody');
-  if (type === 'obs') {
-    if (activeProfile === 'carehome') {
-      body.innerHTML = `<img src="restore2-soft-signs.png" style="width:100%; border-radius:8px; margin-bottom:12px;" alt="RESTORE2 Soft Signs"><img src="news2-chart.png" style="width:100%; border-radius:8px;" alt="NEWS2 Parameters">`;
-    } else {
-      body.innerHTML = `<img src="news2-chart.png" style="width:100%; border-radius:8px;" alt="NEWS2 Parameters">`;
-    }
-  } else if (type === 'bm') {
-    body.innerHTML = `<img src="glucose-targets.png" style="width:100%; border-radius:8px;" alt="Blood Glucose Targets">`;
-  } else if (type === 'bowel') {
-    body.innerHTML = `<img src="bristol-stool.png" style="width:100%; border-radius:8px;" alt="Bristol Stool Chart">`;
-  } else if (type === 'mh') {
-    body.innerHTML = `<img src="mh-obs-levels.png" style="width:100%; border-radius:8px;" alt="Mental Health Observation Levels">`;
-  } else if (type === 'guide') {
-    body.innerHTML = `<img src="quick-guide.png" style="width:100%; border-radius:8px;" alt="Quick Setup Guide">`;
-  }
-  document.getElementById('infoModal').classList.remove('hidden');
 }
 
 function startAlertTimer() {
@@ -822,7 +737,7 @@ function opts(arr, sel) { return arr.map(a => `<option value="${a}" ${a===sel?'s
 function tNow() { const d = new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 function addArr(k) { 
   const defaultTime = k === 'reminders' ? '' : tNow();
-  db[curBed][k].push({time: defaultTime, val: ''}); 
+  db[curBed][k].unshift({time: defaultTime, val: ''}); 
   saveDB(); 
   renderContent(); 
 }
@@ -830,7 +745,7 @@ function rmArr(k, i) { db[curBed][k].splice(i, 1); saveDB(); renderContent(); }
 function markSkinFine() { db[curBed].amy.sac = 'Fine'; db[curBed].amy.groin = 'Fine'; db[curBed].amy.heels = 'Fine'; db[curBed].amy.elbows = 'Fine'; saveDB(); renderContent(); }
 function setNoDateArr(i) { const d = new Date(); db[curBed].dressings[i].date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; saveDB(); renderContent(); }
 function calcDue(val) { if (!val) return '-'; const d = new Date(val); d.setDate(d.getDate() + 3); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; }
-function clearShift() { if (confirm("Clear all data and end shift?")) { localStorage.removeItem('cdu_alloc'); localStorage.removeItem('cdu_db'); localStorage.removeItem('cdu_start'); localStorage.removeItem('cdu_profile'); location.reload(); } }
+function clearShift() { if (confirm("Clear all data and end shift?")) { localStorage.removeItem('cdu_alloc'); localStorage.removeItem('cdu_db'); localStorage.removeItem('cdu_start'); localStorage.removeItem('cdu_ward'); localStorage.removeItem('cdu_mods'); location.reload(); } }
 function handleSwipe() { 
   if (showSummary || alloc.length <= 1) return; 
   const diffX = touchEndX - touchStartX; 
